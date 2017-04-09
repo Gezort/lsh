@@ -232,7 +232,7 @@ class ApproximateRNN(object):
             ns, ds = store.k_neighbours(q, return_distances=True)
             for n, d in zip(ns, ds):
                 if id(n) not in unique_neighbours:
-                    unique_neighbours.append(id(n))
+                    unique_neighbours.add(id(n))
                     neighbours.append(n)
                     distances.append(d)
 
