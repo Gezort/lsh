@@ -42,7 +42,7 @@ class LSHHammingHashFamily(object):
         return self._allowed_distance * (1 + self._margin)
 
     def _get_p_1(self):
-        return 1 - self._allowed_distance / self._dimension
+        return 1.0 - self._allowed_distance / float(self._dimension)
 
     def _get_p_2(self): 
         return 1 - self._allowed_distance * (1 + self._margin) / self._dimension 
@@ -88,8 +88,8 @@ class LSHHammingtStore(object):
         self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
 
         # see P2 near Th 1 in article referenced above for what is rho and c
-        rho = np.log(1 / self._hash_family.p_1) / np.log(1 / self._hash_family.p_2)
-        self._c = 4
+        rho = np.log(1.0 / self._hash_family.p_1) / np.log(1 / self._hash_family.p_2)
+        self._c = 4.0
 
         self._hash_bits = int(np.ceil(np.log(bucket_size / float(size)) / np.log(self._hash_family.p_2)))
         self._hash_groups = int(np.ceil((size / float(bucket_size)) ** rho))
@@ -142,7 +142,7 @@ class LSHHammingtStore(object):
 
 
     def _neighbours_candidates(self, q):
-        candidates_to_find = self._c * self._hash_groups
+        candidates_to_find = int(np.ceil(self._c * self._hash_groups))
 
         candidates = []
         hash_group_index=0
@@ -229,7 +229,7 @@ class ApproximateRNN(object):
         distances = []
 
         for store in self._lsh_stores:
-            ns, ds = store.k_neighbours(q, return_distances=True)
+            ns, ds = store.k_neighbours(q, k=k, return_distances=True)
             for n, d in zip(ns, ds):
                 if id(n) not in unique_neighbours:
                     unique_neighbours.add(id(n))
@@ -242,9 +242,9 @@ class ApproximateRNN(object):
         order = np.argsort(distances)
 
         if return_distances:
-            return neighbours[order, :][:k, :], distances[order][:k]
+            return np.copy(neighbours[order, :][:k, :]), np.copy(distances[order][:k])
         else:
-            return neighbours[order, :][:k, :]
+            return np.copy(neighbours[order, :][:k, :])
 
     def _get_max_allowed_dimensions(self):
         return self._dimensions
