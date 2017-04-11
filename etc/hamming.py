@@ -3,7 +3,7 @@ import random
 
 
 class LSHHammingHash(object):
-    def __init__(self, dimension, projection = None):
+    def __init__(self, dimension, projection=None):
         self._dimension = dimension
         self._projection = projection if projection is not None else random.randint(0, self._dimension - 1)
 
@@ -12,12 +12,13 @@ class LSHHammingHash(object):
         Computes hash function, prepends input with zeros if needed
             @param p - ndarray, binary vector
         """
-        assert(len(p) <= self._dimension)
+        assert (len(p) <= self._dimension)
         j = self._projection - (self._dimension - len(p))
         if j < 0:
             return 0
         else:
             return p[j]
+
 
 class LSHHammingHashFamily(object):
     def __init__(self, dimension, allowed_distance, margin):
@@ -32,8 +33,7 @@ class LSHHammingHashFamily(object):
         """
         self._allowed_distance = allowed_distance
         self._margin = margin
-        self._dimension = dimension        
-
+        self._dimension = dimension
 
     def _get_r_1(self):
         return self._allowed_distance
@@ -44,8 +44,8 @@ class LSHHammingHashFamily(object):
     def _get_p_1(self):
         return 1.0 - self._allowed_distance / float(self._dimension)
 
-    def _get_p_2(self): 
-        return 1 - self._allowed_distance * (1 + self._margin) / self._dimension 
+    def _get_p_2(self):
+        return 1 - self._allowed_distance * (1 + self._margin) / self._dimension
 
     p_1 = property(_get_p_1)
     p_2 = property(_get_p_2)
@@ -55,8 +55,8 @@ class LSHHammingHashFamily(object):
     def __call__(self):
         return LSHHammingHash(self._dimension)
 
-class HashGroup(object):
 
+class HashGroup(object):
     def __init__(self, hashes, bases=None, max_base=None):
         """
         @param hashes - list of hash functions each hash function assumed to return either 0 or 1
@@ -64,7 +64,7 @@ class HashGroup(object):
         """
 
         self._hashes = hashes
-        self._bases = bases or np.random.randint(0, len(self._hashes) -1, len(self._hashes))
+        self._bases = bases or np.random.randint(0, len(self._hashes) - 1, len(self._hashes))
 
     def __call__(self, p):
         """
@@ -76,13 +76,15 @@ class HashGroup(object):
 
         return np.sum(hash_bits * self._bases)
 
+
 class LSHHammingtStore(object):
     # TODO: Use better second level hashes
-    def __init__(self, allowed_distance, margin, size, dimensions, bucket_size=128, memory_utilization=2, at_most_hashes_in_group=None):
+    def __init__(self, allowed_distance, margin, size, dimensions, bucket_size=128, memory_utilization=2,
+                 at_most_hashes_in_group=None):
         self._size = size
         self._bucket_size = bucket_size
 
-        self._storage_size = memory_utilization * size / bucket_size        
+        self._storage_size = memory_utilization * size / bucket_size
         self._storage = [list() for _ in range(self._storage_size)]
 
         self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
@@ -123,12 +125,11 @@ class LSHHammingtStore(object):
         if len(bucket) < self._bucket_size:
             bucket.append(p)
             return True
-        
+
         if strict:
             assert len(bucket) <= self._bucket_size
         else:
-            return False            
-
+            return False
 
     def put(self, p):
         """
@@ -140,12 +141,11 @@ class LSHHammingtStore(object):
 
             self._put_in_bucket(p, bucket)
 
-
     def _neighbours_candidates(self, q):
         candidates_to_find = int(np.ceil(self._c * self._hash_groups))
 
         candidates = []
-        hash_group_index=0
+        hash_group_index = 0
         while len(candidates) < candidates_to_find and hash_group_index < self._hash_groups:
             _hash = self._hashes[hash_group_index]
             hash_value = _hash(q)
@@ -179,25 +179,22 @@ class LSHHammingtStore(object):
 
 
 class ApproximateRNN(object):
-
-
-    def _repeats_by_tolerance(self, tolerance):        
+    def _repeats_by_tolerance(self, tolerance):
         return np.ceil(1.0 / tolerance)
 
-
     def __init__(
-        self, 
-        size, r, margin, bucket_size=128, memory_utilization=2, 
-        method_tolerance=None, lsh_stores=None,
-        similar_point_same_hases_probability=None, hash_bits=None,
-        ensure_enough_dimensions_for=None,
-        at_most_hashes_in_group=None
+            self,
+            size, r, margin, bucket_size=128, memory_utilization=2,
+            method_tolerance=None, lsh_stores=None,
+            similar_point_same_hases_probability=None, hash_bits=None,
+            ensure_enough_dimensions_for=None,
+            at_most_hashes_in_group=None
     ):
 
         assert (similar_point_same_hases_probability is None and hash_bits is not None) or \
-            (similar_point_same_hases_probability is not None and hash_bits is None)
+               (similar_point_same_hases_probability is not None and hash_bits is None)
         assert (method_tolerance is None and lsh_stores is not None) or \
-            (method_tolerance is not None and lsh_stores is None)
+               (method_tolerance is not None and lsh_stores is None)
 
         if hash_bits is not None:
             # see proof of Th. 1 in the ref
@@ -213,7 +210,7 @@ class ApproximateRNN(object):
 
         self._lsh_stores = [
             LSHHammingtStore(
-                r, margin, size, self._dimensions, bucket_size=bucket_size, 
+                r, margin, size, self._dimensions, bucket_size=bucket_size,
                 memory_utilization=memory_utilization, at_most_hashes_in_group=at_most_hashes_in_group
             ) for _ in range(lsh_stores)
         ]
@@ -263,7 +260,7 @@ class ApproximateRNN(object):
     hash_bits = property(_get_hash_bits_count)
     hash_groups = property(_get_hash_groups_count)
 
-    #TODO make following code cleaner
+    # TODO make following code cleaner
     r_1 = property(lambda self: self._lsh_stores[0]._hash_family.r_1)
     r_2 = property(lambda self: self._lsh_stores[0]._hash_family.r_2)
     p_1 = property(lambda self: self._lsh_stores[0]._hash_family.p_1)
@@ -283,7 +280,6 @@ class ApproximateRNN(object):
         )
 
 
-
 if __name__ == '__main__':
     d = 32
     N = 512
@@ -293,4 +289,3 @@ if __name__ == '__main__':
     rnn = ApproximateRNN(N, 2, 0.5, lsh_stores=1, hash_bits=16, ensure_enough_dimensions_for=d)
     print(str(rnn))
     rnn.fit(X)
-    

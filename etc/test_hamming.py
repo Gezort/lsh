@@ -6,7 +6,6 @@ from hamming import ApproximateRNN
 
 
 class TestHammingLSH(TestCase):
-
     def _make_distinct(self, x, distinct_bits=1):
         d = np.copy(x)
         for i in range(distinct_bits):
@@ -41,7 +40,7 @@ class TestHammingLSH(TestCase):
             self._X.shape[0], 2, 0.5,
             lsh_stores=1,
             hash_bits=16,
-            ensure_enough_dimensions_for=10*self._X.shape[1]
+            ensure_enough_dimensions_for=10 * self._X.shape[1]
         )
 
     def test_it_should_find_something(self):
