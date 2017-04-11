@@ -2,7 +2,35 @@ import numpy as np
 import random
 
 
-class LSHHammingHash(object):
+class LSHHashBase(object):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+
+class LSHHashFamilyBase(object):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def _get_r_1(self):
+        raise NotImplementedError()
+
+    def _get_r_2(self):
+        raise NotImplementedError()
+
+    def _get_p_1(self):
+        raise NotImplementedError()
+
+    def _get_p_2(self):
+        raise NotImplementedError()
+
+    def __call__(self):
+        raise NotImplementedError()
+
+
+class LSHHammingHash(LSHHashBase):
     def __init__(self, dimension, projection=None):
         self._dimension = dimension
         self._projection = projection if projection is not None else random.randint(0, self._dimension - 1)
@@ -20,7 +48,34 @@ class LSHHammingHash(object):
             return p[j]
 
 
-class LSHHammingHashFamily(object):
+class LSHL1Hash(LSHHashBase):
+    def __init__(self, dimension, max_coordinate, projection=None):
+        self._dimension = dimension
+        self._max_coordinate = max_coordinate
+        if projection is not None:
+            self._projection = projection
+        else:
+            self._projection = random.randint(0, self._dimension * self._max_coordinate - 1)
+
+    def __call__(self, p):
+        """
+        Computes hash function, prepends input with zeros if needed
+            @param p - ndarray, integer vector
+        """
+        assert (len(p) <= self._dimension)
+        j = self._projection - (self._dimension - len(p)) * self._max_coordinate
+        if j < 0:
+            return 0
+        else:
+            i = (j + self._max_coordinate - 1) / self._max_coordinate
+            j %= self._max_coordinate
+            if p[i] >= j:
+                return 1
+            else:
+                return 0
+
+
+class LSHHammingHashFamily(LSHHashFamilyBase):
     def __init__(self, dimension, allowed_distance, margin):
         """
         hash function family, $H(r_1, r_2, p_1, p_2)$ see "Sim& search in high dimensions..." in 
@@ -29,7 +84,6 @@ class LSHHammingHashFamily(object):
             @param allowed_distance - max distance between "similar" points ($r_1$)
             @param margin - relative margin between "similar" and "distinct" points 
                 ($\epsilon$ in article, $r_2 = r (1 + \epsilon)$)
-            @param projection - projection to choose as a hash value, None to choose random projection
         """
         self._allowed_distance = allowed_distance
         self._margin = margin
@@ -56,6 +110,43 @@ class LSHHammingHashFamily(object):
         return LSHHammingHash(self._dimension)
 
 
+class LSHL1HashFamily(LSHHashFamilyBase):
+    def __init__(self, dimension, max_coordinate, allowed_distance, margin):
+        """
+        hash function family, $H(r_1, r_2, p_1, p_2)$ see "Sim& search in high dimensions..." in 
+            "Proc. of 25th VLDB conf", 1999
+            @param dimension - dimension of space
+            @param max_coordinate - max coordinate value of points in P, ($C$)
+            @param allowed_distance - max distance between "similar" points ($r_1$)
+            @param margin - relative margin between "similar" and "distinct" points 
+                ($\epsilon$ in article, $r_2 = r (1 + \epsilon)$)
+        """
+        self._allowed_distance = allowed_distance
+        self._margin = margin
+        self._dimension = dimension
+        self._max_coordinate = max_coordinate
+
+    def _get_r_1(self):
+        return self._allowed_distance
+
+    def _get_r_2(self):
+        return self._allowed_distance * (1 + self._margin)
+
+    def _get_p_1(self):
+        return 1.0 - self._allowed_distance / float(self._dimension * self._max_coordinate)
+
+    def _get_p_2(self):
+        return 1 - self._allowed_distance * (1 + self._margin) / (self._dimension * self._max_coordinate)
+
+    p_1 = property(_get_p_1)
+    p_2 = property(_get_p_2)
+    r_1 = property(_get_r_1)
+    r_2 = property(_get_r_2)
+
+    def __call__(self):
+        return LSHL1Hash(self._dimension, self._max_coordinate)
+
+
 class HashGroup(object):
     def __init__(self, hashes, bases=None, max_base=None):
         """
@@ -77,7 +168,7 @@ class HashGroup(object):
         return np.sum(hash_bits * self._bases)
 
 
-class LSHHammingtStore(object):
+class LSHHammingStore(object):
     # TODO: Use better second level hashes
     def __init__(self, allowed_distance, margin, size, dimensions, bucket_size=128, memory_utilization=2,
                  at_most_hashes_in_group=None):
@@ -209,7 +300,7 @@ class ApproximateRNN(object):
         lsh_stores = lsh_stores if lsh_stores is not None else self._repeats_by_tolerance(tolerance)
 
         self._lsh_stores = [
-            LSHHammingtStore(
+            LSHHammingStore(
                 r, margin, size, self._dimensions, bucket_size=bucket_size,
                 memory_utilization=memory_utilization, at_most_hashes_in_group=at_most_hashes_in_group
             ) for _ in range(lsh_stores)
