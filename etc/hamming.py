@@ -170,16 +170,25 @@ class HashGroup(object):
 
 class LSHHammingStore(object):
     # TODO: Use better second level hashes
-    def __init__(self, allowed_distance, margin, size, dimensions, bucket_size=128, memory_utilization=2,
-                 at_most_hashes_in_group=None):
+    def __init__(self, allowed_distance, margin, size, dimensions, max_coordinate=None, bucket_size=128,
+                 memory_utilization=2, at_most_hashes_in_group=None, metric='hamming'):
+        """ 
+        @param metric: str, one of ['hamming', 'l1'] 
+        """
+        assert metric in ['hamming', 'l1'], 'Wrong metric'
         self._size = size
         self._bucket_size = bucket_size
 
         self._storage_size = memory_utilization * size / bucket_size
         self._storage = [list() for _ in range(self._storage_size)]
 
-        self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
+        if metric == 'hamming':
+            self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
+        elif metric == 'l1':
+            assert max_coordinate is not None, 'Please set maximum coordinate in the set'
+            self._hash_family = LSHL1HashFamily(dimensions, max_coordinate, allowed_distance, margin)
 
+        # TODO: look for formulas for l1 metric
         # see P2 near Th 1 in article referenced above for what is rho and c
         rho = np.log(1.0 / self._hash_family.p_1) / np.log(1 / self._hash_family.p_2)
         self._c = 4.0
@@ -190,10 +199,10 @@ class LSHHammingStore(object):
         if at_most_hashes_in_group is not None:
             assert self._hash_groups <= at_most_hashes_in_group
 
-        def build_hamming_hash_group_of_size(size):
+        def build_hash_group_of_size(size):
             return HashGroup([self._hash_family() for _ in range(size)])
 
-        self._hashes = [build_hamming_hash_group_of_size(self._hash_bits) for _ in range(self._hash_groups)]
+        self._hashes = [build_hash_group_of_size(self._hash_bits) for _ in range(self._hash_groups)]
 
     def _get_hash_bits_count(self):
         return self._hash_bits
@@ -246,7 +255,8 @@ class LSHHammingStore(object):
 
         return np.array(candidates[:candidates_to_find])
 
-    def _distance(self, p, q):
+    @staticmethod
+    def _distance(p, q):
         """
         Computes hamming distance between binary vectors p and q
         """
@@ -261,16 +271,17 @@ class LSHHammingStore(object):
         candidates = self._neighbours_candidates(q)
         distances = np.array([self._distance(q, x) for x in candidates])
 
-        indeces_sorted = np.argsort(distances)
+        indexes_sorted = np.argsort(distances)
 
         if return_distances:
-            return candidates[indeces_sorted, :][:k, :], distances[indeces_sorted][:k]
+            return candidates[indexes_sorted, :][:k, :], distances[indexes_sorted][:k]
         else:
-            return candidates[indeces_sorted, :][:k, :]
+            return candidates[indexes_sorted, :][:k, :]
 
 
 class ApproximateRNN(object):
-    def _repeats_by_tolerance(self, tolerance):
+    @staticmethod
+    def _repeats_by_tolerance(tolerance):
         return np.ceil(1.0 / tolerance)
 
     def __init__(

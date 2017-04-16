@@ -6,7 +6,8 @@ from hamming import ApproximateRNN
 
 
 class TestHammingLSH(TestCase):
-    def _make_distinct(self, x, distinct_bits=1):
+    @staticmethod
+    def _make_distinct(x, distinct_bits=1):
         d = np.copy(x)
         for i in range(distinct_bits):
             d[i] = 0 if d[i] == 1 else 1
