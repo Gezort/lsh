@@ -220,6 +220,13 @@ class ApproximateRNN(object):
             for p in X:
                 store.put(p)
 
+    @staticmethod
+    def hamming_hash(x):
+        acc = 0
+        for p, b in enumerate(x):
+            acc += 2**b
+        return acc
+
     def k_neighbours(self, q, k=1, return_distances=False):
         unique_neighbours = set()
         neighbours = []
@@ -228,8 +235,8 @@ class ApproximateRNN(object):
         for store in self._lsh_stores:
             ns, ds = store.k_neighbours(q, k=k, return_distances=True)
             for n, d in zip(ns, ds):
-                if id(n) not in unique_neighbours:
-                    unique_neighbours.add(id(n))
+                if ApproximateRNN.hamming_hash(n) not in unique_neighbours:
+                    unique_neighbours.add(ApproximateRNN.hamming_hash(n))
                     neighbours.append(n)
                     distances.append(d)
 
