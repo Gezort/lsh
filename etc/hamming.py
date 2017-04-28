@@ -67,7 +67,7 @@ class LSHL1Hash(LSHHashBase):
         if j < 0:
             return 0
         else:
-            i = (j + self._max_coordinate - 1) / self._max_coordinate
+            i = j / self._max_coordinate
             j %= self._max_coordinate
             if p[i] >= j:
                 return 1
@@ -168,7 +168,7 @@ class HashGroup(object):
         return np.sum(hash_bits * self._bases)
 
 
-class LSHHammingStore(object):
+class LSHStore(object):
     # TODO: Use better second level hashes
     def __init__(self, allowed_distance, margin, size, dimensions, max_coordinate=None, bucket_size=128,
                  memory_utilization=2, at_most_hashes_in_group=None, metric='hamming'):
@@ -176,6 +176,7 @@ class LSHHammingStore(object):
         @param metric: str, one of ['hamming', 'l1'] 
         """
         assert metric in ['hamming', 'l1'], 'Wrong metric'
+        self._metric = metric
         self._size = size
         self._bucket_size = bucket_size
 
@@ -255,13 +256,14 @@ class LSHHammingStore(object):
 
         return np.array(candidates[:candidates_to_find])
 
-    @staticmethod
-    def _distance(p, q):
+    def _distance(self, p, q):
         """
         Computes hamming distance between binary vectors p and q
         """
-
-        return np.sum(p != q)
+        if self._metric == 'l1':
+            return np.abs(p - q).sum()
+        else:
+            return np.sum(p != q)
 
     def k_neighbours(self, q, k=1, return_distances=False):
         """
@@ -287,16 +289,19 @@ class ApproximateRNN(object):
     def __init__(
             self,
             size, r, margin, bucket_size=128, memory_utilization=2,
-            method_tolerance=None, lsh_stores=None,
-            similar_point_same_hases_probability=None, hash_bits=None,
-            ensure_enough_dimensions_for=None,
-            at_most_hashes_in_group=None
+            method_tolerance=None, lsh_stores=None, similar_point_same_hases_probability=None,
+            hash_bits=None, ensure_enough_dimensions_for=None, at_most_hashes_in_group=None,
+            metric='hamming', max_coordinate=None
     ):
 
         assert (similar_point_same_hases_probability is None and hash_bits is not None) or \
                (similar_point_same_hases_probability is not None and hash_bits is None)
         assert (method_tolerance is None and lsh_stores is not None) or \
                (method_tolerance is not None and lsh_stores is None)
+        assert (metric in ['l1', 'hamming'])
+
+        if metric == 'l1':
+            assert max_coordinate is not None, 'Please set maximum coordinate in the set'
 
         if hash_bits is not None:
             # see proof of Th. 1 in the ref
@@ -308,12 +313,16 @@ class ApproximateRNN(object):
         if ensure_enough_dimensions_for is not None:
             assert self._dimensions >= ensure_enough_dimensions_for
 
-        lsh_stores = lsh_stores if lsh_stores is not None else self._repeats_by_tolerance(tolerance)
+        if lsh_stores is not None:
+            lsh_stores = lsh_stores
+        else:
+            lsh_stores = self._repeats_by_tolerance(method_tolerance)
 
         self._lsh_stores = [
-            LSHHammingStore(
-                r, margin, size, self._dimensions, bucket_size=bucket_size,
-                memory_utilization=memory_utilization, at_most_hashes_in_group=at_most_hashes_in_group
+            LSHStore(
+                r, margin, size, self._dimensions, max_coordinate=max_coordinate,
+                bucket_size=bucket_size, memory_utilization=memory_utilization,
+                at_most_hashes_in_group=at_most_hashes_in_group, metric=metric
             ) for _ in range(lsh_stores)
         ]
 
@@ -390,11 +399,12 @@ class ApproximateRNN(object):
 
 
 if __name__ == '__main__':
-    d = 32
+    d = 5
     N = 512
 
-    X = np.random.randint(0, 1, (N, d))
+    X = np.random.randint(0, 5, (N, d))
 
-    rnn = ApproximateRNN(N, 2, 0.5, lsh_stores=1, hash_bits=16, ensure_enough_dimensions_for=d)
+    rnn = ApproximateRNN(N, 2, 0.5, lsh_stores=1, hash_bits=16, ensure_enough_dimensions_for=d,
+                         metric='l1', max_coordinate=5)
     print(str(rnn))
     rnn.fit(X)
