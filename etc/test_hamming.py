@@ -2,7 +2,7 @@ from unittest import TestCase
 import numpy as np
 from sklearn.neighbors import KNeighborsClassifier
 import nose
-from .hamming import ApproximateRNN
+from hamming import ApproximateRNN
 
 
 class TestHammingLSH(TestCase):
