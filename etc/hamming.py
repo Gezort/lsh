@@ -272,7 +272,6 @@ class LSHStore(object):
         """
         candidates = self._neighbours_candidates(q)
         distances = np.array([self._distance(q, x) for x in candidates])
-
         indexes_sorted = np.argsort(distances)
 
         if return_distances:
@@ -353,7 +352,6 @@ class ApproximateRNN(object):
 
         distances = np.array(distances)
         neighbours = np.array(neighbours)
-
         order = np.argsort(distances)
 
         if return_distances:
