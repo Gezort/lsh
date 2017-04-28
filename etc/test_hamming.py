@@ -56,6 +56,22 @@ class TestHammingLSH(TestCase):
         self.assertTrue(np.all(neighbours[0] == self._X[0]), "Same element must always be found")
         self.assertTrue(len(neighbours) == 10, "Must found exactly same number of elements as asked to")
 
+    def test_it_should_find_something(self):
+        rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=20, hash_bits=16,
+                             ensure_enough_dimensions_for=self._X.shape[1])
+
+        rnn.fit(self._X)
+
+        neighbours = rnn.k_neighbours(self._X[0], 10)
+
+        self.assertIsNotNone(neighbours)
+        same_elements = np.sum(np.all(x == self._X[0]) for x in self._X)
+
+        for i in range(same_elements):
+            self.assertTrue(np.all(neighbours[i] == self._X[0]), "Same element must always be found")
+
+        self.assertTrue(np.all(neighbours[same_elements] == self._X[1]), "Near must always be found")        
+
 
 if __name__ == '__main__':
     nose.main()
