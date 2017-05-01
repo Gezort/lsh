@@ -5,6 +5,10 @@ namespace yasda {
         dimensions_(dimensions),
         projection_(projection) { }
 
+    HammingHash::HammingHash(const HammingHash& other) :
+        dimensions_(other.dimensions_),
+        projection_(other.projection_) { }
+
     HammingHash::HammingHash(size_t dimensions, std::random_device &rd) :
         dimensions_(dimensions)
     {

@@ -17,7 +17,8 @@ namespace yasda {
         HammingHash(size_t dimensions, std::random_device &rd);
         bool operator()(const yasda::BinaryString& bstr) const;
 
-        HammingHash(const HammingHash&) = delete;
+        HammingHash(const HammingHash&);
+
         HammingHash& operator=(const HammingHash&) = delete;
 
     private:
@@ -50,6 +51,9 @@ namespace yasda {
     public:
         HashGroup(const HammingHashFamily& hashFamily, size_t size, std::random_device& rd);
         size_t operator()(const yasda::BinaryString& bstr) const;
+
+        HashGroup(const HashGroup&) = delete;
+        HashGroup& operator=(const HashGroup&) = delete;
     private:
         std::vector<HammingHash> hashes_;
         std::vector<size_t> bases_;

@@ -20,3 +20,7 @@ add_test(hamming_test hamming_test)
 add_executable(hamminghash_test test/hamminghash_test.cpp)
 target_link_libraries(hamminghash_test lsh gtest gtest_main)
 add_test(hamminghash_test hamminghash_test)
+
+add_executable(hashgroup_test test/hashgroup_test.cpp)
+target_link_libraries(hashgroup_test lsh gtest gtest_main)
+add_test(hashgroup_test hashgroup_test)
