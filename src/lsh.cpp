@@ -1,6 +1,7 @@
 #include "lsh.h"
 #include "hamming.h"
 #include <algorithm>
+#include <unordered_set>
 
 namespace yasda {
     HammingHash::HammingHash(size_t dimensions, size_t projection) :
@@ -72,9 +73,11 @@ namespace yasda {
     }
 
     LSHHammingStore::LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions,
+                                     std::random_device& rd,
                                      size_t bucketSize, double memoryUtilization, size_t at_most_hashes_in_group) :
         size_(size), bucketSize_(bucketSize),
-        hashFamily_(dimensions, allowedDistance, margin)
+        hashFamily_(dimensions, allowedDistance, margin),
+        rd_(rd)
     {
         size_t storageSize = static_cast<size_t>(memoryUtilization * size_ / bucketSize_);
         storage_.resize(storageSize);
@@ -148,7 +151,7 @@ namespace yasda {
     }
 
     std::vector<yasda::BinaryString*> LSHHammingStore::getKNeighbours(
-            const yasda::BinaryString &query, size_t k) const {
+            const yasda::BinaryString &query, size_t k, std::vector<size_t>* oDistances) const {
 
 
         std::vector<BinaryString*> candidates = getNeighbourCandidates(query);
@@ -175,9 +178,115 @@ namespace yasda {
 
         while (neighbourIdx < k && neighbourIdx < neighbours.size()) {
             neighbours.push_back(candidates[idxs[neighbourIdx]]);
+            if (oDistances != nullptr) {
+                oDistances->push_back(distances[idxs[neighbourIdx]]);
+            }
             ++neighbourIdx;
         }
 
         return neighbours;
+    }
+
+    ApproximateRNN::ApproximateRNN(size_t size, double r, double margin, size_t bucketSize, double memoryUtilization,
+                                   double methodTolerance, size_t lshStoresCount,
+                                   double similarPointsSameHashesProbability, size_t hashBits,
+                                   size_t ensureEnoughDimensionsFor, size_t atMostHashesInGroup) {
+
+        if (similarPointsSameHashesProbability < 0 && hashBits == std::numeric_limits<size_t>::max() ||
+                similarPointsSameHashesProbability < 1 && hashBits < std::numeric_limits<size_t>::max()) {
+            throw std::invalid_argument("Specify either similarPointsSameHashesProbability or hashBits");
+        }
+        if (methodTolerance < 0 && lshStoresCount == std::numeric_limits<size_t>::max() ||
+                methodTolerance < 1 && lshStoresCount < std::numeric_limits<size_t>::max()) {
+            throw std::invalid_argument("Specify either method tolerance or lshStores");
+        }
+
+        if (hashBits < std::numeric_limits<size_t>::max()) {
+            double p_2 = pow((bucketSize / static_cast<double>(size)), 1.0 / hashBits);
+            dimensions_ = static_cast<size_t>(ceil(r * (1 + margin) / 1 - p_2));
+        } else {
+            dimensions_ = static_cast<size_t>(ceil(r / (1.0 - similarPointsSameHashesProbability)));
+        }
+
+        if (ensureEnoughDimensionsFor < std::numeric_limits<size_t>::max() && ensureEnoughDimensionsFor < dimensions_) {
+            throw std::invalid_argument("Not enough dimensions");
+        }
+
+        if (lshStoresCount == std::numeric_limits<size_t>::max()) {
+            lshStoresCount = repeatsByTolerance(methodTolerance);
+        }
+
+        for (size_t storeId=0; storeId < lshStoresCount; ++storeId) {
+            stores_.push_back(
+                    LSHHammingStore(
+                            r,margin, size, dimensions_, rd_, bucketSize, memoryUtilization, atMostHashesInGroup)
+            );
+        }
+
+    }
+
+    size_t ApproximateRNN::repeatsByTolerance(double tolerance) const {
+        return static_cast<size_t>(ceil(1.0 / tolerance));
+    }
+
+    void ApproximateRNN::fit(const std::vector<yasda::BinaryString *> data) {
+        for (LSHHammingStore& store: stores_) {
+            for (auto x: data) {
+                store.put(x);
+            }
+        }
+    }
+
+    std::vector<yasda::BinaryString*> ApproximateRNN::getKNearestNeighbours(const yasda::BinaryString &query,
+                                                                            size_t k) {
+        std::unordered_set<BinaryString *> unique;
+        std::vector<BinaryString *> uniqueOrdered;
+        std::vector<BinaryString *> neighbours;
+        std::vector<size_t> distances;
+
+        for (LSHHammingStore& store: stores_) {
+            std::vector<BinaryString *> thisStoreNeighbours = store.getKNeighbours(query, k, &distances);
+            for (auto neighbour: thisStoreNeighbours) {
+                neighbours.push_back(neighbour);
+            }
+        }
+
+        std::vector<size_t> idxs;
+
+        for (size_t idx = 0; idx < neighbours.size(); ++idx){
+            idxs.push_back(idx);
+        }
+
+        std::sort(idxs.begin(), idxs.end(), [&distances](size_t l, size_t r) -> bool {
+            return distances[l] < distances[r];
+        });
+
+        size_t orderedNeighbourId = 0;
+
+        while (unique.size() < k && orderedNeighbourId < neighbours.size()) {
+            BinaryString* neighbour = neighbours[idxs[orderedNeighbourId]];
+            if (unique.count(neighbour) == 0) {
+                unique.insert(neighbour);
+                uniqueOrdered.push_back(neighbour);
+            }
+        }
+
+        return uniqueOrdered;
+    }
+
+    size_t ApproximateRNN::getHashGroupsCount() const {
+        return stores_[0].getHashGroupsCount();
+    }
+
+    size_t ApproximateRNN::getHashBitsCount() const {
+        return stores_[0].getHashBitsCount();
+    }
+
+    size_t ApproximateRNN::getLSHStoresCount() const {
+        return stores_.size();
+    }
+
+    size_t ApproximateRNN::getMaxAllowedDimensions() const {
+        return dimensions_;
     }
 }

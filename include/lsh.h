@@ -61,14 +61,17 @@ namespace yasda {
 
     class LSHHammingStore {
     public:
-        LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions, size_t bucketSize=128,
+        LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions,
+                        std::random_device& rd,
+                        size_t bucketSize=128,
                         double memoryUtilization=2,
                         size_t at_most_hashes_in_group=std::numeric_limits<size_t>::max());
 
         size_t getHashBitsCount() const;
         size_t getHashGroupsCount() const;
         void put(const yasda::BinaryString* const bstr);
-        std::vector<yasda::BinaryString*> getKNeighbours(const yasda::BinaryString& query, size_t k) const;
+        std::vector<yasda::BinaryString*> getKNeighbours(
+                const yasda::BinaryString& query, size_t k, std::vector<size_t>* distances= nullptr) const;
 
     private:
         using Bucket = std::vector<yasda::BinaryString *>;
@@ -86,7 +89,31 @@ namespace yasda {
         size_t hashBits_;
         size_t hashGroups_;
         std::vector<HashGroup> hashes_;
-        std::random_device rd;
+        std::random_device& rd_;
+    };
+
+    class ApproximateRNN {
+    public:
+        ApproximateRNN(
+                size_t size, double r, double margin, size_t bucketSize=128, double memoryUtilization=2,
+                double methodTolerance=-1, size_t lshStoresCount=std::numeric_limits<size_t>::max(),
+                double similarPointsSameHashesProbability=-1, size_t hashBits=std::numeric_limits<size_t>::max(),
+                size_t ensureEnoughDimensionsFor=std::numeric_limits<size_t>::max(),
+                size_t atMostHashesInGroup=std::numeric_limits<size_t>::max()
+        );
+        std::vector<yasda::BinaryString*> getKNearestNeighbours(const yasda::BinaryString& query, size_t k);
+        void fit(const std::vector<yasda::BinaryString*> data);
+    private:
+        size_t getMaxAllowedDimensions() const;
+        size_t getLSHStoresCount() const;
+        size_t getHashBitsCount() const;
+        size_t getHashGroupsCount() const;
+
+        size_t repeatsByTolerance(double tolerance) const;
+
+        size_t dimensions_;
+        std::random_device rd_;
+        std::vector<LSHHammingStore> stores_;
     };
 
 }
