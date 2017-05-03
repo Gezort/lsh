@@ -55,7 +55,7 @@ class TestHammingLSH(TestCase):
         self.assertTrue(np.all(neighbours[0] == self._X[0]), "Same element must always be found")
         self.assertTrue(len(neighbours) == 10, "Must found exactly same number of elements as asked to")
 
-    def test_it_should_find_something(self):
+    def test_it_should_find_elements(self):
         rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=20, hash_bits=16,
                              ensure_enough_dimensions_for=self._X.shape[1])
 

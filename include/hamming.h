@@ -13,6 +13,8 @@ namespace yasda {
 
     bool GetBit(const BinaryString& binaryString, size_t eltIdx);
     void SetBit(BinaryString& binaryString, size_t eltIdx, bool value);
+
+    size_t GetHammingDistance(const BinaryString& left, const BinaryString& right);
 }
 
 #endif //LSH_HAMMING_H

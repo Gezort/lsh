@@ -15,7 +15,7 @@ namespace yasda {
     public:
         HammingHash(size_t dimensions, size_t projection);
         HammingHash(size_t dimensions, std::random_device &rd);
-        bool operator()(const yasda::BinaryString& bstr) const;
+        bool operator()(const yasda::BinaryString& const bstr) const;
 
         HammingHash(const HammingHash&);
 
@@ -57,6 +57,36 @@ namespace yasda {
     private:
         std::vector<HammingHash> hashes_;
         std::vector<size_t> bases_;
+    };
+
+    class LSHHammingStore {
+    public:
+        LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions, size_t bucketSize=128,
+                        double memoryUtilization=2,
+                        size_t at_most_hashes_in_group=std::numeric_limits<size_t>::max());
+
+        size_t getHashBitsCount() const;
+        size_t getHashGroupsCount() const;
+        void put(const yasda::BinaryString* const bstr);
+        std::vector<yasda::BinaryString*> getKNeighbours(const yasda::BinaryString& query, size_t k) const;
+
+    private:
+        using Bucket = std::vector<yasda::BinaryString *>;
+        // see P2 near Th 1 in article referenced above for what is rho and c
+        const double c_ = 4;
+
+        bool putInBucket(const yasda::BinaryString* const bstr, size_t bucketId, bool strict= false);
+        std::vector<yasda::BinaryString*> getNeighbourCandidates(const BinaryString& query) const;
+
+        size_t size_;
+        size_t bucketSize_;
+
+        std::vector<Bucket> storage_;
+        HammingHashFamily hashFamily_;
+        size_t hashBits_;
+        size_t hashGroups_;
+        std::vector<HashGroup> hashes_;
+        std::random_device rd;
     };
 
 }

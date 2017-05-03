@@ -34,3 +34,12 @@ TEST_F(HammingTestCase, itShoudWriteBits) {
     EXPECT_EQ(bstrCpy[1], 1);
 }
 
+TEST_F(HammingTestCase, itShouldComputeDistance) {
+    yasda::BinaryString bstr_2(2);
+    bstr_2[0] = 5;
+    bstr_2[1] = 2;
+
+    EXPECT_EQ(2, yasda::GetHammingDistance(bstr_2, bstr));
+
+}
+

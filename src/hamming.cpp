@@ -39,4 +39,20 @@ namespace yasda {
         }
 
     }
+
+    size_t GetHammingDistance(const BinaryString& left, const BinaryString& right) {
+        assert(left.size() == right.size());
+
+        size_t distance = 0;
+        for (size_t groupIdx=0; groupIdx < left.size(); ++groupIdx) {
+            size_t missedFeatures = (left[groupIdx] ^ right[groupIdx]);
+
+            while (missedFeatures != 0) {
+                distance += (missedFeatures & 1);
+                missedFeatures = (missedFeatures >> 1);
+            }
+        }
+
+        return distance;
+    }
 }
