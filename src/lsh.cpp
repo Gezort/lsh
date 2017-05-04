@@ -17,6 +17,7 @@ namespace yasda {
     {
         std::mt19937 mt(rd());
         std::uniform_int_distribution<size_t> dist(0, dimensions_);
+        projection_ = dist(mt);
     }
 
     bool HammingHash::operator()(const yasda::BinaryString& bstr) const {
@@ -52,8 +53,9 @@ namespace yasda {
         return HammingHash(dimensions_, rd);
     }
 
-    HashGroup::HashGroup(const HammingHashFamily& hashFamily, size_t size, std::random_device &rd) {
-        std::mt19937 mt(rd());
+    HashGroup::HashGroup(const HammingHashFamily& hashFamily, size_t size, std::random_device &rd):
+        rd_(rd), hashFamily_(hashFamily) {
+        std::mt19937 mt(rd_());
         std::uniform_int_distribution<size_t> basesDistribution(0, size);
 
         for (size_t hashIdx=0; hashIdx < size; ++hashIdx) {
@@ -62,7 +64,18 @@ namespace yasda {
         }
     }
 
-    size_t HashGroup::operator()(const yasda::BinaryString& const bstr) const {
+    HashGroup::HashGroup(const HashGroup & other) :
+        rd_(other.rd_), hashFamily_(other.hashFamily_) {
+        std::mt19937 mt(rd_());
+        std::uniform_int_distribution<size_t> basesDistribution(0, other.hashes_.size());
+
+        for (size_t hashIdx=0; hashIdx < other.hashes_.size(); ++hashIdx) {
+            hashes_.push_back(hashFamily_(rd_));
+            bases_.push_back(basesDistribution(mt));
+        }
+    }
+
+    size_t HashGroup::operator()(const yasda::BinaryString& bstr) const {
         size_t result = 0;
 
         for (size_t hashIdx=0; hashIdx < hashes_.size(); ++hashIdx) {
@@ -74,8 +87,11 @@ namespace yasda {
 
     LSHHammingStore::LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions,
                                      std::random_device& rd,
-                                     size_t bucketSize, double memoryUtilization, size_t at_most_hashes_in_group) :
+                                     size_t bucketSize, double memoryUtilization, size_t atMostHashesInGroup) :
         size_(size), bucketSize_(bucketSize),
+        dimensions_(dimensions), allowedDistance_(allowedDistance),
+        margin_(margin), memoryUtilization_(memoryUtilization),
+        atMostHashesInGroup_(atMostHashesInGroup),
         hashFamily_(dimensions, allowedDistance, margin),
         rd_(rd)
     {
@@ -90,14 +106,44 @@ namespace yasda {
                 ceil(pow((size / static_cast<double>(bucketSize_)), rho))
         );
 
-        if (at_most_hashes_in_group < std::numeric_limits<size_t>::max()) {
-            if (at_most_hashes_in_group < hashBits_) {
+        if (atMostHashesInGroup_ < std::numeric_limits<size_t>::max()) {
+            if (atMostHashesInGroup_ < hashBits_) {
                 throw std::invalid_argument("Need to many bits");
             }
         }
 
         for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
             hashes_.push_back(HashGroup(hashFamily_, hashBits_, rd));
+        }
+    }
+
+    LSHHammingStore::LSHHammingStore(const LSHHammingStore &other):
+            size_(other.size_), bucketSize_(other.bucketSize_),
+            dimensions_(other.dimensions_), allowedDistance_(other.allowedDistance_),
+            margin_(other.margin_), memoryUtilization_(other.memoryUtilization_),
+            atMostHashesInGroup_(other.atMostHashesInGroup_),
+            hashFamily_(other.dimensions_, other.allowedDistance_, other.margin_),
+            rd_(other.rd_) {
+
+        size_t storageSize = static_cast<size_t>(memoryUtilization_ * size_ / bucketSize_);
+        storage_.resize(storageSize);
+
+        double rho = log(1.0 / hashFamily_.get_p_1()) / log(1.0 / hashFamily_.get_p_2());
+        hashBits_ = static_cast<size_t>(
+                ceil((log(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
+
+        hashGroups_ = static_cast<size_t>(
+                ceil(pow((size_ / static_cast<double>(bucketSize_)), rho))
+        );
+
+        if (atMostHashesInGroup_ < std::numeric_limits<size_t>::max()) {
+            if (atMostHashesInGroup_ < hashBits_) {
+                throw std::invalid_argument("Need to many bits");
+            }
+        }
+
+        for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
+            hashes_.push_back(HashGroup(hashFamily_, hashBits_, rd_));
         }
     }
 
@@ -109,11 +155,11 @@ namespace yasda {
         return hashGroups_;
     }
 
-    bool LSHHammingStore::putInBucket(const yasda::BinaryString *const bstr, size_t bucketId, bool strict=false) {
-        Bucket& bucket = storage_[bucketId];
+    bool LSHHammingStore::putInBucket(const yasda::BinaryString *const bstr, size_t bucketId, bool strict) {
+        LSHHammingStore::Bucket& bucket = storage_[bucketId];
 
         if (bucket.size() < bucketSize_) {
-            bucket.push_back(bstr);
+            bucket.push_back(const_cast<yasda::BinaryString*>(bstr));
             return true;
         } else {
             if (strict) {
@@ -144,7 +190,7 @@ namespace yasda {
 
     void LSHHammingStore::put(const yasda::BinaryString *const bstr) {
         for (HashGroup& hash: hashes_) {
-            size_t hashValue = hash(&bstr);
+            size_t hashValue = hash(*bstr);
             size_t bucketIdx = hashValue % storage_.size();
             putInBucket(bstr, bucketIdx);
         }
@@ -192,12 +238,12 @@ namespace yasda {
                                    double similarPointsSameHashesProbability, size_t hashBits,
                                    size_t ensureEnoughDimensionsFor, size_t atMostHashesInGroup) {
 
-        if (similarPointsSameHashesProbability < 0 && hashBits == std::numeric_limits<size_t>::max() ||
-                similarPointsSameHashesProbability < 1 && hashBits < std::numeric_limits<size_t>::max()) {
+        if ((similarPointsSameHashesProbability < 0 && hashBits == std::numeric_limits<size_t>::max()) ||
+                (similarPointsSameHashesProbability > 0 && hashBits < std::numeric_limits<size_t>::max())) {
             throw std::invalid_argument("Specify either similarPointsSameHashesProbability or hashBits");
         }
-        if (methodTolerance < 0 && lshStoresCount == std::numeric_limits<size_t>::max() ||
-                methodTolerance < 1 && lshStoresCount < std::numeric_limits<size_t>::max()) {
+        if ((methodTolerance < 0 && lshStoresCount == std::numeric_limits<size_t>::max()) ||
+                (methodTolerance > 0 && lshStoresCount < std::numeric_limits<size_t>::max())) {
             throw std::invalid_argument("Specify either method tolerance or lshStores");
         }
 
