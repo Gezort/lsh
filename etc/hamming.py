@@ -198,7 +198,7 @@ class LSHStore(object):
         self._hash_groups = int(np.ceil((size / float(bucket_size)) ** rho))
 
         if at_most_hashes_in_group is not None:
-            assert self._hash_groups <= at_most_hashes_in_group
+            assert self._hash_bits <= at_most_hashes_in_group
 
         def build_hash_group_of_size(size):
             return HashGroup([self._hash_family() for _ in range(size)])
