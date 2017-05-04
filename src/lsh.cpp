@@ -2,6 +2,7 @@
 #include "hamming.h"
 #include <algorithm>
 #include <unordered_set>
+#include <iostream>
 
 namespace yasda {
     HammingHash::HammingHash(size_t dimensions, size_t projection) :
@@ -222,7 +223,7 @@ namespace yasda {
 
         size_t neighbourIdx = 0;
 
-        while (neighbourIdx < k && neighbourIdx < neighbours.size()) {
+        while (neighbourIdx < k && neighbourIdx < candidates.size()) {
             neighbours.push_back(candidates[idxs[neighbourIdx]]);
             if (oDistances != nullptr) {
                 oDistances->push_back(distances[idxs[neighbourIdx]]);
@@ -292,6 +293,7 @@ namespace yasda {
 
         for (LSHHammingStore& store: stores_) {
             std::vector<BinaryString *> thisStoreNeighbours = store.getKNeighbours(query, k, &distances);
+
             for (auto neighbour: thisStoreNeighbours) {
                 neighbours.push_back(neighbour);
             }

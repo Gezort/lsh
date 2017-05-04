@@ -55,4 +55,18 @@ namespace yasda {
 
         return distance;
     }
+
+    bool BinaryStringsAreSame(const BinaryString& left, const BinaryString& right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+
+        for (size_t bitGroupId=0; bitGroupId < left.size(); ++bitGroupId) {
+            if (left[bitGroupId] != right[bitGroupId]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
