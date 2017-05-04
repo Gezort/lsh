@@ -13,15 +13,32 @@
 
 class ApproximateRNNTestCase: public ::testing::Test {
 protected:
+
+    void SwapBit(const yasda::BinaryString& swapFrom, yasda::BinaryString& swapTo, size_t bitId) {
+        if (yasda::GetBit(swapFrom, bitId)) {
+            yasda::SetBit(swapTo, bitId, false);
+        } else {
+            yasda::SetBit(swapTo, bitId, true);
+        }
+    }
+
     void SetUp() {
         std::random_device rd;
         for (size_t bstrId=0; bstrId < N; ++bstrId) {
             X.push_back(generateRandomString(d, rd));
         }
+
+        yasda::CopyBinaryString(*X[0], *X[1]);
+        SwapBit(*X[0], *X[1], 0);
+
+        for (size_t xId=2; xId < X.size(); ++xId) {
+            SwapBit(*X[0], *X[xId], 0);
+            SwapBit(*X[0], *X[xId], 1);
+        }
     }
 
     yasda::BinaryString* generateRandomString(size_t d, std::random_device& rd) {
-        size_t groups = d / groupSize;
+        size_t groups = N / groupSize;
         std::mt19937 mt(rd());
         std::uniform_int_distribution<int> uniformDistribution(0, 1);
 
@@ -38,7 +55,7 @@ protected:
                 ++bitInGroup;
             }
         }
-
+        assert(bstr->size() > 0);
         return bstr;
     }
 
@@ -71,3 +88,12 @@ TEST_F(ApproximateRNNTestCase, itShouldFindElementItself) {
     EXPECT_EQ(X[0], neighbours[0]);
 }
 
+TEST_F(ApproximateRNNTestCase, itShouldFindElementAndSimilarElements) {
+    yasda::ApproximateRNN rnn(N, 2, 0.5, 128, 2, -1, 20, -1, 16, 32);
+    rnn.fit(X);
+    std::vector<yasda::BinaryString*> neighbours = rnn.getKNearestNeighbours(*X[0], 2);
+
+    EXPECT_EQ(2, neighbours.size());
+    EXPECT_EQ(X[0], neighbours[0]);
+    EXPECT_EQ(X[1], neighbours[1]);
+}

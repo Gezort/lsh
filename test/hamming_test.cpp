@@ -52,3 +52,13 @@ TEST_F(HammingTestCase, itShouldCompareBinaryStrings) {
     EXPECT_FALSE(yasda::BinaryStringsAreSame(bstr, bstr_2));
 }
 
+TEST_F(HammingTestCase, itShouldCopyBinaryStrings) {
+    yasda::BinaryString bstr_2(2);
+    bstr_2[0] = 5;
+    bstr_2[1] = 2;
+
+    EXPECT_FALSE(yasda::BinaryStringsAreSame(bstr, bstr_2));
+    yasda::CopyBinaryString(bstr, bstr_2);
+    EXPECT_TRUE(yasda::BinaryStringsAreSame(bstr, bstr_2));
+}
+

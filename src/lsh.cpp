@@ -317,6 +317,7 @@ namespace yasda {
                 unique.insert(neighbour);
                 uniqueOrdered.push_back(neighbour);
             }
+            ++orderedNeighbourId;
         }
 
         return uniqueOrdered;

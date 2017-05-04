@@ -69,4 +69,10 @@ namespace yasda {
 
         return true;
     }
+
+    void CopyBinaryString(const BinaryString& copyFrom, BinaryString& copyTo) {
+        copyTo.resize(copyFrom.size());
+
+        std::copy(copyFrom.begin(), copyFrom.end(), copyTo.begin());
+    }
 }
