@@ -2,7 +2,7 @@
 // Created by Alexey Golomedov on 01.05.17.
 //
 
-#include "hamming.h"
+#include "binarystring.h"
 #include <cassert>
 
 #include <iostream>
@@ -11,6 +11,7 @@ namespace yasda {
 
     static const size_t groupSize = 64;
 
+    template < >
     bool GetBit(const yasda::BinaryString& binaryString, size_t eltIdx) {
         size_t groups = binaryString.size();
 
@@ -23,6 +24,8 @@ namespace yasda {
 
         return (binaryString[group] & (1 << elt)) > 0;
     }
+
+    template < >
     void SetBit(yasda::BinaryString& binaryString, size_t eltIdx, bool value) {
         size_t groups = binaryString.size();
 
@@ -40,6 +43,7 @@ namespace yasda {
 
     }
 
+    template < >
     size_t GetHammingDistance(const BinaryString& left, const BinaryString& right) {
         assert(left.size() == right.size());
 
@@ -56,6 +60,7 @@ namespace yasda {
         return distance;
     }
 
+    template < >
     bool BinaryStringsAreSame(const BinaryString& left, const BinaryString& right) {
         if (left.size() != right.size()) {
             return false;
@@ -70,6 +75,7 @@ namespace yasda {
         return true;
     }
 
+    template < >
     void CopyBinaryString(const BinaryString& copyFrom, BinaryString& copyTo) {
         copyTo.resize(copyFrom.size());
 

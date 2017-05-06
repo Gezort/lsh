@@ -7,7 +7,7 @@
 //
 
 #include "gtest/gtest.h"
-#include <hamming.h>
+#include <binarystring.h>
 #include <lsh.h>
 #include <random>
 

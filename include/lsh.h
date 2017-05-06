@@ -7,7 +7,7 @@
 
 #include <cstddef>
 #include <random>
-#include <hamming.h>
+#include <binarystring.h>
 
 namespace yasda {
 

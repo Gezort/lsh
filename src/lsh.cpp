@@ -1,5 +1,5 @@
 #include "lsh.h"
-#include "hamming.h"
+#include "binarystring.h"
 #include <algorithm>
 #include <unordered_set>
 #include <iostream>

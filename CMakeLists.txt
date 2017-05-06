@@ -6,16 +6,16 @@ set(CMAKE_CXX_STANDARD 11)
 
 include_directories(include)
 
-add_library(lsh src/hamming.cpp src/lsh.cpp)
+add_library(lsh src/dense_binarystring.cpp src/sparse_binarystring.cpp src/lsh.cpp)
 target_link_libraries(lsh)
 
 enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIR})
 
-add_executable(hamming_test test/hamming_test.cpp)
-target_link_libraries(hamming_test lsh gtest gtest_main)
-add_test(hamming_test hamming_test)
+add_executable(dense_binarystring_test test/dense_binarystring_test.cpp)
+target_link_libraries(dense_binarystring_test lsh gtest gtest_main)
+add_test(dense_binarystring_test dense_binarystring_test)
 
 add_executable(hamminghash_test test/hamminghash_test.cpp)
 target_link_libraries(hamminghash_test lsh gtest gtest_main)
@@ -28,3 +28,8 @@ add_test(hashgroup_test hashgroup_test)
 add_executable(rnn_test test/approximate_rnn_test.cpp)
 target_link_libraries(rnn_test lsh gtest gtest_main)
 add_test(rnn_test rnn_test)
+
+add_executable(sparse_binarystring_test test/sparse_binarystring_test.cpp)
+target_link_libraries(sparse_binarystring_test lsh gtest gtest_main)
+add_test(sparse_binarystring_test sparse_binarystring_test)
+
