@@ -118,7 +118,7 @@ namespace yasda {
                 size_t atMostHashesInGroup=std::numeric_limits<size_t>::max()
         );
         std::vector<T*> getKNearestNeighbours(const T& query, size_t k);
-        void fit(const std::vector<T*> data);
+        void fit(const std::vector<T*>& data);
         size_t getMaxAllowedDimensions() const;
         size_t getLSHStoresCount() const;
         size_t getHashBitsCount() const;
@@ -184,12 +184,12 @@ namespace yasda {
 
     template <typename T>
     HammingHash<T> HammingHashFamily<T>::operator()(size_t projection) const {
-        return HammingHash<BinaryString>(dimensions_, projection);
+        return HammingHash<T>(dimensions_, projection);
     }
 
     template <typename T>
     HammingHash<T> HammingHashFamily<T>::operator()(std::random_device &rd) const {
-        return HammingHash<BinaryString>(dimensions_, rd);
+        return HammingHash<T>(dimensions_, rd);
     }
 
 
@@ -430,7 +430,7 @@ namespace yasda {
     }
 
     template <typename T>
-    void ApproximateRNN<T>::fit(const std::vector<T*> data) {
+    void ApproximateRNN<T>::fit(const std::vector<T*>& data) {
         for (LSHHammingStore<T>& store: stores_) {
             for (auto x: data) {
                 store.put(x);

@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 
 namespace yasda {
     using BinaryString = std::vector<uint64_t>;
@@ -27,6 +28,23 @@ namespace yasda {
 
         HashedSparseBinaryString(const HashedSparseBinaryString&) = delete;
         HashedSparseBinaryString& operator =(const HashedSparseBinaryString&) = delete;
+    };
+
+    class HashedBinaryStringReader {
+    public:
+        HashedBinaryStringReader(std::string fname, size_t hashBits);
+        ~HashedBinaryStringReader();
+        const std::vector<HashedSparseBinaryString*>& get() const;
+        size_t getId(HashedSparseBinaryString * const bstr) const;
+
+        HashedBinaryStringReader(const HashedBinaryStringReader&) = delete;
+        HashedBinaryStringReader& operator=(const HashedBinaryStringReader&) = delete;
+    private:
+        void read(std::string fname);
+
+        std::vector<HashedSparseBinaryString*> X_;
+        std::unordered_map<HashedSparseBinaryString*, size_t> ptrToId_;
+        size_t hashBits_;
     };
 
     template <typename T> bool GetBit(const T& bstr, size_t bitId);
