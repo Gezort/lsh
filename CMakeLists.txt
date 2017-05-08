@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 include_directories(include)
 
-add_library(lsh src/dense_binarystring.cpp src/sparse_binarystring.cpp)
+add_library(lsh src/dense_binarystring.cpp src/sparse_binarystring.cpp src/hashed_sparse_binarystring.cpp)
 target_link_libraries(lsh)
 
 enable_testing()
@@ -33,3 +33,6 @@ add_executable(sparse_binarystring_test test/sparse_binarystring_test.cpp)
 target_link_libraries(sparse_binarystring_test lsh gtest gtest_main)
 add_test(sparse_binarystring_test sparse_binarystring_test)
 
+add_executable(hashed_sparse_binarystring_test test/hashed_sparse_binarystring_test.cpp)
+target_link_libraries(hashed_sparse_binarystring_test lsh gtest gtest_main)
+add_test(hashed_sparse_binarystring_test hashed_sparse_binarystring_test)
