@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 include_directories(include)
 
-add_library(lsh src/dense_binarystring.cpp src/sparse_binarystring.cpp src/lsh.cpp)
+add_library(lsh src/dense_binarystring.cpp src/sparse_binarystring.cpp)
 target_link_libraries(lsh)
 
 enable_testing()

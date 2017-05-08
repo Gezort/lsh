@@ -17,12 +17,12 @@ protected:
 };
 
 TEST_F(HammingHashTestCase, itShouldComputeHashCode) {
-    yasda::HammingHash hash(128, 65);
+    yasda::HammingHash<yasda::BinaryString> hash(128, 65);
     EXPECT_TRUE(hash(bstr));
 
-    yasda::HammingHash hash_2(128, 8);
+    yasda::HammingHash<yasda::BinaryString> hash_2(128, 8);
     EXPECT_FALSE(hash_2(bstr));
 
-    yasda::HammingHash hash_3(128, 512);
+    yasda::HammingHash<yasda::BinaryString> hash_3(128, 512);
     EXPECT_FALSE(hash_3(bstr));
 }

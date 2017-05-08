@@ -18,8 +18,8 @@ protected:
 
 TEST_F(HashGroupTest, itShouldConstructHashGroup) {
     std::random_device rd;
-    yasda::HammingHashFamily hashFamily(128, 0, 0);
-    yasda::HashGroup hashGroup(hashFamily, 32, rd);
+    yasda::HammingHashFamily<yasda::BinaryString> hashFamily(128, 0, 0);
+    yasda::HashGroup<yasda::BinaryString> hashGroup(hashFamily, 32, rd);
 
     EXPECT_TRUE(hashGroup(bstr) > 0);
 }

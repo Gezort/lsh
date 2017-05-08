@@ -74,12 +74,12 @@ protected:
 };
 
 TEST_F(ApproximateRNNTestCase, itShouldBeAbleToConstruct) {
-    yasda::ApproximateRNN rnn(N, 2, 0.5, 128, 2, -1, 1, -1, 16, 32);
+    yasda::ApproximateRNN<yasda::BinaryString> rnn(N, 2, 0.5, 128, 2, -1, 1, -1, 16, 32);
     EXPECT_EQ(1, rnn.getLSHStoresCount());
 }
 
 TEST_F(ApproximateRNNTestCase, itShouldFindElementItself) {
-    yasda::ApproximateRNN rnn(N, 2, 0.5, 128, 2, -1, 1, -1, 16, 32);
+    yasda::ApproximateRNN<yasda::BinaryString> rnn(N, 2, 0.5, 128, 2, -1, 1, -1, 16, 32);
 
     rnn.fit(X);
     std::vector<yasda::BinaryString*> neighbours = rnn.getKNearestNeighbours(*X[0], 1);
@@ -89,7 +89,7 @@ TEST_F(ApproximateRNNTestCase, itShouldFindElementItself) {
 }
 
 TEST_F(ApproximateRNNTestCase, itShouldFindElementAndSimilarElements) {
-    yasda::ApproximateRNN rnn(N, 2, 0.5, 128, 2, -1, 20, -1, 16, 32);
+    yasda::ApproximateRNN<yasda::BinaryString> rnn(N, 2, 0.5, 128, 2, -1, 20, -1, 16, 32);
     rnn.fit(X);
     std::vector<yasda::BinaryString*> neighbours = rnn.getKNearestNeighbours(*X[0], 2);
 

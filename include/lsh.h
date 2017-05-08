@@ -11,21 +11,23 @@
 
 namespace yasda {
 
+    template <typename T>
     class HammingHash {
     public:
         HammingHash(size_t dimensions, size_t projection);
         HammingHash(size_t dimensions, std::random_device &rd);
-        bool operator()(const yasda::BinaryString& bstr) const;
+        bool operator()(const T& bstr) const;
 
-        HammingHash(const HammingHash&);
+        HammingHash(const HammingHash<T>&);
 
-        HammingHash& operator=(const HammingHash&) = delete;
+        HammingHash& operator=(const HammingHash<T>&) = delete;
 
     private:
         size_t dimensions_;
         size_t projection_;
     };
 
+    template <typename T>
     class HammingHashFamily {
     public:
         HammingHashFamily(size_t dimensions, double allowedDistance, double margin);
@@ -35,8 +37,8 @@ namespace yasda {
         double get_r_1() const;
         double get_r_2() const;
 
-        HammingHash operator ()(size_t projection) const;
-        HammingHash operator ()(std::random_device &rd) const;
+        HammingHash<T> operator ()(size_t projection) const;
+        HammingHash<T> operator ()(std::random_device &rd) const;
 
         HammingHashFamily(const HammingHashFamily&) = delete;
         HammingHashFamily& operator=(const HammingHashFamily&) = delete;
@@ -47,20 +49,22 @@ namespace yasda {
         double margin_;
     };
 
+    template <typename T>
     class HashGroup {
     public:
-        HashGroup(const HammingHashFamily& hashFamily, size_t size, std::random_device& rd);
-        size_t operator()(const yasda::BinaryString& bstr) const;
+        HashGroup(const HammingHashFamily<T>& hashFamily, size_t size, std::random_device& rd);
+        size_t operator()(const T& bstr) const;
 
-        HashGroup(const HashGroup&);
-        HashGroup& operator=(const HashGroup&) = delete;
+        HashGroup(const HashGroup<T>&);
+        HashGroup& operator=(const HashGroup<T>&) = delete;
     private:
-        std::vector<HammingHash> hashes_;
+        std::vector<HammingHash<T>> hashes_;
         std::vector<size_t> bases_;
         std::random_device& rd_;
-        const HammingHashFamily& hashFamily_;
+        const HammingHashFamily<T>& hashFamily_;
     };
 
+    template <typename T>
     class LSHHammingStore {
     public:
         LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions,
@@ -71,29 +75,29 @@ namespace yasda {
 
         size_t getHashBitsCount() const;
         size_t getHashGroupsCount() const;
-        void put(const yasda::BinaryString* const bstr);
-        std::vector<yasda::BinaryString*> getKNeighbours(
-                const yasda::BinaryString& query, size_t k, std::vector<size_t>* distances= nullptr) const;
+        void put(const T* const bstr);
+        std::vector<T*> getKNeighbours(
+                const T& query, size_t k, std::vector<size_t>* distances= nullptr) const;
 
-        LSHHammingStore(const LSHHammingStore&);
-        LSHHammingStore& operator=(const LSHHammingStore&) = delete;
+        LSHHammingStore(const LSHHammingStore<T>&);
+        LSHHammingStore& operator=(const LSHHammingStore<T>&) = delete;
 
     private:
-        using Bucket = std::vector<yasda::BinaryString *>;
+        using Bucket = std::vector<T*>;
         // see P2 near Th 1 in article referenced above for what is rho and c
         const double c_ = 4;
 
-        bool putInBucket(const yasda::BinaryString* const bstr, size_t bucketId, bool strict= false);
-        std::vector<yasda::BinaryString*> getNeighbourCandidates(const BinaryString& query) const;
+        bool putInBucket(const T* const bstr, size_t bucketId, bool strict= false);
+        std::vector<T*> getNeighbourCandidates(const T& query) const;
 
         size_t size_;
         size_t bucketSize_;
 
         std::vector<Bucket> storage_;
-        HammingHashFamily hashFamily_;
+        HammingHashFamily<T> hashFamily_;
         size_t hashBits_;
         size_t hashGroups_;
-        std::vector<HashGroup> hashes_;
+        std::vector<HashGroup<T>> hashes_;
         std::random_device& rd_;
 
         double allowedDistance_;
@@ -103,6 +107,7 @@ namespace yasda {
         size_t atMostHashesInGroup_;
     };
 
+    template <typename T>
     class ApproximateRNN {
     public:
         ApproximateRNN(
@@ -112,8 +117,8 @@ namespace yasda {
                 size_t ensureEnoughDimensionsFor=std::numeric_limits<size_t>::max(),
                 size_t atMostHashesInGroup=std::numeric_limits<size_t>::max()
         );
-        std::vector<yasda::BinaryString*> getKNearestNeighbours(const yasda::BinaryString& query, size_t k);
-        void fit(const std::vector<yasda::BinaryString*> data);
+        std::vector<T*> getKNearestNeighbours(const T& query, size_t k);
+        void fit(const std::vector<T*> data);
         size_t getMaxAllowedDimensions() const;
         size_t getLSHStoresCount() const;
         size_t getHashBitsCount() const;
@@ -124,9 +129,374 @@ namespace yasda {
 
         size_t dimensions_;
         std::random_device rd_;
-        std::vector<LSHHammingStore> stores_;
+        std::vector<LSHHammingStore<T>> stores_;
     };
 
-}
+    template <typename T>
+    HammingHash<T>::HammingHash(size_t dimensions, size_t projection) :
+            dimensions_(dimensions),
+            projection_(projection) { }
+
+    template <typename T>
+    HammingHash<T>::HammingHash(const HammingHash<T>& other) :
+            dimensions_(other.dimensions_),
+            projection_(other.projection_) { }
+
+    template <typename T>
+    HammingHash<T>::HammingHash(size_t dimensions, std::random_device &rd) :
+            dimensions_(dimensions)
+    {
+        std::mt19937 mt(rd());
+        std::uniform_int_distribution<size_t> dist(0, dimensions_);
+        projection_ = dist(mt);
+    }
+
+    template <typename T>
+    bool HammingHash<T>::operator()(const T& bstr) const {
+        return yasda::GetBit(bstr, projection_);
+    }
+
+    template <typename T>
+    HammingHashFamily<T>::HammingHashFamily(size_t dimensions, double allowedDistance, double margin) :
+            dimensions_(dimensions),
+            allowedDistance_(allowedDistance),
+            margin_(margin) { }
+
+    template <typename T>
+    double HammingHashFamily<T>::get_p_1() const {
+        return 1.0 - allowedDistance_ / static_cast<double >(dimensions_);
+    }
+
+    template <typename T>
+    double HammingHashFamily<T>::get_p_2() const {
+        return 1.0 - allowedDistance_ * (1.0 + margin_) / static_cast<double>(dimensions_);
+    }
+
+    template <typename T>
+    double HammingHashFamily<T>::get_r_1() const {
+        return allowedDistance_;
+    }
+
+    template <typename T>
+    double HammingHashFamily<T>::get_r_2() const {
+        return allowedDistance_ * (1.0 + margin_);
+    }
+
+    template <typename T>
+    HammingHash<T> HammingHashFamily<T>::operator()(size_t projection) const {
+        return HammingHash<BinaryString>(dimensions_, projection);
+    }
+
+    template <typename T>
+    HammingHash<T> HammingHashFamily<T>::operator()(std::random_device &rd) const {
+        return HammingHash<BinaryString>(dimensions_, rd);
+    }
+
+
+    template <typename T>
+    HashGroup<T>::HashGroup(const HammingHashFamily<T>& hashFamily, size_t size, std::random_device &rd):
+            rd_(rd), hashFamily_(hashFamily) {
+        std::mt19937 mt(rd_());
+        std::uniform_int_distribution<size_t> basesDistribution(0, size);
+
+        for (size_t hashIdx=0; hashIdx < size; ++hashIdx) {
+            hashes_.push_back(hashFamily(rd));
+            bases_.push_back(basesDistribution(mt));
+        }
+    }
+
+    template <typename T>
+    HashGroup<T>::HashGroup(const HashGroup<T>& other) :
+            rd_(other.rd_), hashFamily_(other.hashFamily_) {
+        std::mt19937 mt(rd_());
+        std::uniform_int_distribution<size_t> basesDistribution(0, other.hashes_.size());
+
+        for (size_t hashIdx=0; hashIdx < other.hashes_.size(); ++hashIdx) {
+            hashes_.push_back(hashFamily_(rd_));
+            bases_.push_back(basesDistribution(mt));
+        }
+    }
+
+    template <typename T>
+    size_t HashGroup<T>::operator()(const T& bstr) const {
+        size_t result = 0;
+
+        for (size_t hashIdx=0; hashIdx < hashes_.size(); ++hashIdx) {
+            result += bases_[hashIdx] * static_cast<size_t>(hashes_[hashIdx](bstr));
+        }
+
+        return result;
+    }
+
+    template <typename T>
+    LSHHammingStore<T>::LSHHammingStore(double allowedDistance, double margin, size_t size, size_t dimensions,
+                                     std::random_device& rd,
+                                     size_t bucketSize, double memoryUtilization, size_t atMostHashesInGroup) :
+            size_(size), bucketSize_(bucketSize),
+            dimensions_(dimensions), allowedDistance_(allowedDistance),
+            margin_(margin), memoryUtilization_(memoryUtilization),
+            atMostHashesInGroup_(atMostHashesInGroup),
+            hashFamily_(dimensions, allowedDistance, margin),
+            rd_(rd)
+    {
+        size_t storageSize = static_cast<size_t>(memoryUtilization * size_ / bucketSize_);
+        storage_.resize(storageSize);
+
+        double rho = log(1.0 / hashFamily_.get_p_1()) / log(1.0 / hashFamily_.get_p_2());
+        hashBits_ = static_cast<size_t>(
+                ceil((log(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
+
+        hashGroups_ = static_cast<size_t>(
+                ceil(pow((size / static_cast<double>(bucketSize_)), rho))
+        );
+
+        if (atMostHashesInGroup_ < std::numeric_limits<size_t>::max()) {
+            if (atMostHashesInGroup_ < hashBits_) {
+                throw std::invalid_argument("Need to many bits");
+            }
+        }
+
+        for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
+            hashes_.push_back(HashGroup<T>(hashFamily_, hashBits_, rd));
+        }
+    }
+
+    template <typename T>
+    LSHHammingStore<T>::LSHHammingStore(const LSHHammingStore<T> &other):
+            size_(other.size_), bucketSize_(other.bucketSize_),
+            dimensions_(other.dimensions_), allowedDistance_(other.allowedDistance_),
+            margin_(other.margin_), memoryUtilization_(other.memoryUtilization_),
+            atMostHashesInGroup_(other.atMostHashesInGroup_),
+            hashFamily_(other.dimensions_, other.allowedDistance_, other.margin_),
+            rd_(other.rd_) {
+
+        size_t storageSize = static_cast<size_t>(memoryUtilization_ * size_ / bucketSize_);
+        storage_.resize(storageSize);
+
+        double rho = log(1.0 / hashFamily_.get_p_1()) / log(1.0 / hashFamily_.get_p_2());
+        hashBits_ = static_cast<size_t>(
+                ceil((log(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
+
+        hashGroups_ = static_cast<size_t>(
+                ceil(pow((size_ / static_cast<double>(bucketSize_)), rho))
+        );
+
+        if (atMostHashesInGroup_ < std::numeric_limits<size_t>::max()) {
+            if (atMostHashesInGroup_ < hashBits_) {
+                throw std::invalid_argument("Need to many bits");
+            }
+        }
+
+        for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
+            hashes_.push_back(HashGroup<T>(hashFamily_, hashBits_, rd_));
+        }
+    }
+
+    template <typename T>
+    size_t LSHHammingStore<T>::getHashBitsCount() const {
+        return hashBits_;
+    }
+
+    template <typename T>
+    size_t LSHHammingStore<T>::getHashGroupsCount() const {
+        return hashGroups_;
+    }
+
+    template <typename T>
+    bool LSHHammingStore<T>::putInBucket(const T *const bstr, size_t bucketId, bool strict) {
+        Bucket& bucket = storage_[bucketId];
+
+        if (bucket.size() < bucketSize_) {
+            bucket.push_back(const_cast<T*>(bstr));
+            return true;
+        } else {
+            if (strict) {
+                throw std::invalid_argument("Bucket too large");
+            } else {
+                return false;
+            }
+        }
+    }
+
+    template <typename T>
+    std::vector<T*> LSHHammingStore<T>::getNeighbourCandidates(const T &query) const {
+
+        size_t candidatesToFind = static_cast<size_t>(ceil(c_ * hashGroups_));
+
+        std::vector<T*> candidates;
+        size_t hashGroupIdx = 0;
+
+        while (candidates.size() < candidatesToFind and hashGroupIdx < hashGroups_) {
+            size_t hashValue = hashes_[hashGroupIdx](query);
+            size_t bucketIdx = hashValue % storage_.size();
+            for (T* bstr: storage_[bucketIdx]) {
+                candidates.push_back(bstr);
+            }
+            ++hashGroupIdx;
+        }
+        return candidates;
+    }
+
+    template <typename T>
+    void LSHHammingStore<T>::put(const T *const bstr) {
+        for (HashGroup<T>& hash: hashes_) {
+            size_t hashValue = hash(*bstr);
+            size_t bucketIdx = hashValue % storage_.size();
+            putInBucket(bstr, bucketIdx);
+        }
+    }
+
+    template <typename T>
+    std::vector<T*> LSHHammingStore<T>::getKNeighbours(
+            const T &query, size_t k, std::vector<size_t>* oDistances) const {
+
+
+        std::vector<T*> candidates = getNeighbourCandidates(query);
+        std::vector<size_t> distances(candidates.size());
+
+        std::transform(candidates.cbegin(), candidates.cend(), distances.begin(),
+                       [&query](T* x) -> size_t {
+                           return yasda::GetHammingDistance(*x, query);
+                       }
+        );
+
+        std::vector<size_t> idxs;
+        for (size_t idx=0; idx < candidates.size(); ++idx) {
+            idxs.push_back(idx);
+        }
+
+        std::sort(idxs.begin(), idxs.end(), [&distances](size_t l, size_t r) -> bool {
+            return distances[l] < distances[r];
+        });
+
+        std::vector<T*> neighbours;
+
+        size_t neighbourIdx = 0;
+
+        while (neighbourIdx < k && neighbourIdx < candidates.size()) {
+            neighbours.push_back(candidates[idxs[neighbourIdx]]);
+            if (oDistances != nullptr) {
+                oDistances->push_back(distances[idxs[neighbourIdx]]);
+            }
+            ++neighbourIdx;
+        }
+
+        return neighbours;
+    }
+
+
+    template <typename T>
+    ApproximateRNN<T>::ApproximateRNN(size_t size, double r, double margin, size_t bucketSize, double memoryUtilization,
+                                   double methodTolerance, size_t lshStoresCount,
+                                   double similarPointsSameHashesProbability, size_t hashBits,
+                                   size_t ensureEnoughDimensionsFor, size_t atMostHashesInGroup) {
+
+        if ((similarPointsSameHashesProbability < 0 && hashBits == std::numeric_limits<size_t>::max()) ||
+            (similarPointsSameHashesProbability > 0 && hashBits < std::numeric_limits<size_t>::max())) {
+            throw std::invalid_argument("Specify either similarPointsSameHashesProbability or hashBits");
+        }
+        if ((methodTolerance < 0 && lshStoresCount == std::numeric_limits<size_t>::max()) ||
+            (methodTolerance > 0 && lshStoresCount < std::numeric_limits<size_t>::max())) {
+            throw std::invalid_argument("Specify either method tolerance or lshStores");
+        }
+
+        if (hashBits < std::numeric_limits<size_t>::max()) {
+            double p_2 = pow((bucketSize / static_cast<double>(size)), 1.0 / hashBits);
+            dimensions_ = static_cast<size_t>(ceil(r * (1 + margin) / 1 - p_2));
+        } else {
+            dimensions_ = static_cast<size_t>(ceil(r / (1.0 - similarPointsSameHashesProbability)));
+        }
+
+        if (ensureEnoughDimensionsFor < std::numeric_limits<size_t>::max() && ensureEnoughDimensionsFor < dimensions_) {
+            throw std::invalid_argument("Not enough dimensions");
+        }
+
+        if (lshStoresCount == std::numeric_limits<size_t>::max()) {
+            lshStoresCount = repeatsByTolerance(methodTolerance);
+        }
+
+        for (size_t storeId=0; storeId < lshStoresCount; ++storeId) {
+            stores_.push_back(
+                    LSHHammingStore<T>(
+                            r,margin, size, dimensions_, rd_, bucketSize, memoryUtilization, atMostHashesInGroup)
+            );
+        }
+
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::repeatsByTolerance(double tolerance) const {
+        return static_cast<size_t>(ceil(1.0 / tolerance));
+    }
+
+    template <typename T>
+    void ApproximateRNN<T>::fit(const std::vector<T*> data) {
+        for (LSHHammingStore<T>& store: stores_) {
+            for (auto x: data) {
+                store.put(x);
+            }
+        }
+    }
+
+    template <typename T>
+    std::vector<T*> ApproximateRNN<T>::getKNearestNeighbours(const T &query,
+                                                                            size_t k) {
+        std::unordered_set<T*> unique;
+        std::vector<T*> uniqueOrdered;
+        std::vector<T*> neighbours;
+        std::vector<size_t> distances;
+
+        for (LSHHammingStore<T>& store: stores_) {
+            std::vector<T*> thisStoreNeighbours = store.getKNeighbours(query, k, &distances);
+
+            for (auto neighbour: thisStoreNeighbours) {
+                neighbours.push_back(neighbour);
+            }
+        }
+
+        std::vector<size_t> idxs;
+
+        for (size_t idx = 0; idx < neighbours.size(); ++idx){
+            idxs.push_back(idx);
+        }
+
+        std::sort(idxs.begin(), idxs.end(), [&distances](size_t l, size_t r) -> bool {
+            return distances[l] < distances[r];
+        });
+
+        size_t orderedNeighbourId = 0;
+
+        while (unique.size() < k && orderedNeighbourId < neighbours.size()) {
+            T* neighbour = neighbours[idxs[orderedNeighbourId]];
+            if (unique.count(neighbour) == 0) {
+                unique.insert(neighbour);
+                uniqueOrdered.push_back(neighbour);
+            }
+            ++orderedNeighbourId;
+        }
+
+        return uniqueOrdered;
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::getHashGroupsCount() const {
+        return stores_[0].getHashGroupsCount();
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::getHashBitsCount() const {
+        return stores_[0].getHashBitsCount();
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::getLSHStoresCount() const {
+        return stores_.size();
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::getMaxAllowedDimensions() const {
+        return dimensions_;
+    }
+} // namespace yasda
 
 #endif //LSH_LSH_H
