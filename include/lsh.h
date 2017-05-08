@@ -15,7 +15,7 @@ namespace yasda {
     public:
         HammingHash(size_t dimensions, size_t projection);
         HammingHash(size_t dimensions, std::random_device &rd);
-        bool operator()(const yasda::BinaryString& const bstr) const;
+        bool operator()(const yasda::BinaryString& bstr) const;
 
         HammingHash(const HammingHash&);
 
@@ -52,11 +52,13 @@ namespace yasda {
         HashGroup(const HammingHashFamily& hashFamily, size_t size, std::random_device& rd);
         size_t operator()(const yasda::BinaryString& bstr) const;
 
-        HashGroup(const HashGroup&) = delete;
+        HashGroup(const HashGroup&);
         HashGroup& operator=(const HashGroup&) = delete;
     private:
         std::vector<HammingHash> hashes_;
         std::vector<size_t> bases_;
+        std::random_device& rd_;
+        const HammingHashFamily& hashFamily_;
     };
 
     class LSHHammingStore {
@@ -72,6 +74,9 @@ namespace yasda {
         void put(const yasda::BinaryString* const bstr);
         std::vector<yasda::BinaryString*> getKNeighbours(
                 const yasda::BinaryString& query, size_t k, std::vector<size_t>* distances= nullptr) const;
+
+        LSHHammingStore(const LSHHammingStore&);
+        LSHHammingStore& operator=(const LSHHammingStore&) = delete;
 
     private:
         using Bucket = std::vector<yasda::BinaryString *>;
@@ -90,6 +95,12 @@ namespace yasda {
         size_t hashGroups_;
         std::vector<HashGroup> hashes_;
         std::random_device& rd_;
+
+        double allowedDistance_;
+        double margin_;
+        size_t dimensions_;
+        double memoryUtilization_;
+        size_t atMostHashesInGroup_;
     };
 
     class ApproximateRNN {
@@ -103,12 +114,12 @@ namespace yasda {
         );
         std::vector<yasda::BinaryString*> getKNearestNeighbours(const yasda::BinaryString& query, size_t k);
         void fit(const std::vector<yasda::BinaryString*> data);
-    private:
         size_t getMaxAllowedDimensions() const;
         size_t getLSHStoresCount() const;
         size_t getHashBitsCount() const;
         size_t getHashGroupsCount() const;
 
+    private:
         size_t repeatsByTolerance(double tolerance) const;
 
         size_t dimensions_;
