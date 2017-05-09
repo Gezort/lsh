@@ -3,9 +3,9 @@
 //
 
 #include "gtest/gtest.h"
-#include <hamming.h>
+#include <binarystring.h>
 
-class HammingTestCase: public ::testing::Test {
+class DenseBinaryStringTest: public ::testing::Test {
 protected:
     void SetUp() {
         bstr.resize(2);
@@ -16,13 +16,13 @@ protected:
     yasda::BinaryString bstr;
 };
 
-TEST_F(HammingTestCase, itShoulReadBits) {
+TEST_F(DenseBinaryStringTest, itShoulReadBits) {
     EXPECT_FALSE(yasda::GetBit(bstr, 1));
     EXPECT_TRUE(yasda::GetBit(bstr, 2));
     EXPECT_TRUE(yasda::GetBit(bstr, 64));
 }
 
-TEST_F(HammingTestCase, itShoudWriteBits) {
+TEST_F(DenseBinaryStringTest, itShoudWriteBits) {
     yasda::BinaryString bstrCpy = bstr;
 
     yasda::SetBit(bstrCpy, 0, true);
@@ -34,7 +34,7 @@ TEST_F(HammingTestCase, itShoudWriteBits) {
     EXPECT_EQ(bstrCpy[1], 1);
 }
 
-TEST_F(HammingTestCase, itShouldComputeDistance) {
+TEST_F(DenseBinaryStringTest, itShouldComputeDistance) {
     yasda::BinaryString bstr_2(2);
     bstr_2[0] = 5;
     bstr_2[1] = 2;
@@ -43,7 +43,7 @@ TEST_F(HammingTestCase, itShouldComputeDistance) {
 
 }
 
-TEST_F(HammingTestCase, itShouldCompareBinaryStrings) {
+TEST_F(DenseBinaryStringTest, itShouldCompareBinaryStrings) {
     yasda::BinaryString bstr_2(2);
     bstr_2[0] = 5;
     bstr_2[1] = 2;
@@ -52,7 +52,7 @@ TEST_F(HammingTestCase, itShouldCompareBinaryStrings) {
     EXPECT_FALSE(yasda::BinaryStringsAreSame(bstr, bstr_2));
 }
 
-TEST_F(HammingTestCase, itShouldCopyBinaryStrings) {
+TEST_F(DenseBinaryStringTest, itShouldCopyBinaryStrings) {
     yasda::BinaryString bstr_2(2);
     bstr_2[0] = 5;
     bstr_2[1] = 2;
@@ -61,4 +61,3 @@ TEST_F(HammingTestCase, itShouldCopyBinaryStrings) {
     yasda::CopyBinaryString(bstr, bstr_2);
     EXPECT_TRUE(yasda::BinaryStringsAreSame(bstr, bstr_2));
 }
-
