@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <random>
 #include <binarystring.h>
+#include <iostream>
 
 namespace yasda {
 
@@ -75,6 +76,7 @@ namespace yasda {
 
         size_t getHashBitsCount() const;
         size_t getHashGroupsCount() const;
+        size_t getBucketsCount() const;
         void put(const T* const bstr);
         std::vector<T*> getKNeighbours(
                 const T& query, size_t k, std::vector<size_t>* distances= nullptr) const;
@@ -118,9 +120,10 @@ namespace yasda {
                 size_t atMostHashesInGroup=std::numeric_limits<size_t>::max()
         );
         std::vector<T*> getKNearestNeighbours(const T& query, size_t k);
-        void fit(const std::vector<T*>& data);
+        void fit(const std::vector<T*>& data, bool verbose=false);
         size_t getMaxAllowedDimensions() const;
         size_t getLSHStoresCount() const;
+        size_t getBucketsCount() const;
         size_t getHashBitsCount() const;
         size_t getHashGroupsCount() const;
 
@@ -243,8 +246,12 @@ namespace yasda {
         storage_.resize(storageSize);
 
         double rho = log(1.0 / hashFamily_.get_p_1()) / log(1.0 / hashFamily_.get_p_2());
+
         hashBits_ = static_cast<size_t>(
-                ceil((log(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
+                ceil(
+                        log(static_cast<double>(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())
+                )
+        );
 
         hashGroups_ = static_cast<size_t>(
                 ceil(pow((size / static_cast<double>(bucketSize_)), rho))
@@ -275,7 +282,7 @@ namespace yasda {
 
         double rho = log(1.0 / hashFamily_.get_p_1()) / log(1.0 / hashFamily_.get_p_2());
         hashBits_ = static_cast<size_t>(
-                ceil((log(bucketSize_) / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
+                ceil(log(bucketSize_ / static_cast<double>(size_)) / log(hashFamily_.get_p_2())));
 
         hashGroups_ = static_cast<size_t>(
                 ceil(pow((size_ / static_cast<double>(bucketSize_)), rho))
@@ -384,6 +391,11 @@ namespace yasda {
         return neighbours;
     }
 
+    template <typename T>
+    size_t LSHHammingStore<T>::getBucketsCount() const {
+        return storage_.size();
+    }
+
 
     template <typename T>
     ApproximateRNN<T>::ApproximateRNN(size_t size, double r, double margin, size_t bucketSize, double memoryUtilization,
@@ -402,12 +414,13 @@ namespace yasda {
 
         if (hashBits < std::numeric_limits<size_t>::max()) {
             double p_2 = pow((bucketSize / static_cast<double>(size)), 1.0 / hashBits);
-            dimensions_ = static_cast<size_t>(ceil(r * (1 + margin) / 1 - p_2));
+            dimensions_ = static_cast<size_t>(ceil(r * (1 + margin) / (1 - p_2)));
         } else {
             dimensions_ = static_cast<size_t>(ceil(r / (1.0 - similarPointsSameHashesProbability)));
         }
 
-        if (ensureEnoughDimensionsFor < std::numeric_limits<size_t>::max() && ensureEnoughDimensionsFor < dimensions_) {
+        if (ensureEnoughDimensionsFor < std::numeric_limits<size_t>::max() && ensureEnoughDimensionsFor > dimensions_) {
+            std::cerr << "Not enough dimensions asked: " << ensureEnoughDimensionsFor << " has only " << dimensions_ << std::endl;
             throw std::invalid_argument("Not enough dimensions");
         }
 
@@ -430,11 +443,24 @@ namespace yasda {
     }
 
     template <typename T>
-    void ApproximateRNN<T>::fit(const std::vector<T*>& data) {
+    void ApproximateRNN<T>::fit(const std::vector<T*>& data, bool verbose) {
+        size_t storeId=0;
         for (LSHHammingStore<T>& store: stores_) {
+            if (verbose) {
+                std::cout << "Saving samples to store " << storeId << std::endl;
+            }
+            size_t sampleId=1;
             for (auto x: data) {
                 store.put(x);
+                if (verbose && sampleId % 10000 == 0) {
+                    std::cout << "\t..." << sampleId << " done" << std::endl;
+                }
+                ++sampleId;
             }
+            if (verbose) {
+                std::cout << "Saved samples to store " << storeId << std::endl;
+            }
+            ++storeId;
         }
     }
 
@@ -496,6 +522,11 @@ namespace yasda {
     template <typename T>
     size_t ApproximateRNN<T>::getMaxAllowedDimensions() const {
         return dimensions_;
+    }
+
+    template <typename T>
+    size_t ApproximateRNN<T>::getBucketsCount() const {
+        return stores_[0].getBucketsCount();
     }
 } // namespace yasda
 
