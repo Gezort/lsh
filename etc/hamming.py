@@ -2,7 +2,35 @@ import numpy as np
 import random
 
 
-class LSHHammingHash(object):
+class LSHHashBase(object):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+
+class LSHHashFamilyBase(object):
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def _get_r_1(self):
+        raise NotImplementedError()
+
+    def _get_r_2(self):
+        raise NotImplementedError()
+
+    def _get_p_1(self):
+        raise NotImplementedError()
+
+    def _get_p_2(self):
+        raise NotImplementedError()
+
+    def __call__(self):
+        raise NotImplementedError()
+
+
+class LSHHammingHash(LSHHashBase):
     def __init__(self, dimension, projection=None):
         self._dimension = dimension
         self._projection = projection if projection is not None else random.randint(0, self._dimension - 1)
@@ -20,7 +48,34 @@ class LSHHammingHash(object):
             return p[j]
 
 
-class LSHHammingHashFamily(object):
+class LSHL1Hash(LSHHashBase):
+    def __init__(self, dimension, max_coordinate, projection=None):
+        self._dimension = dimension
+        self._max_coordinate = max_coordinate
+        if projection is not None:
+            self._projection = projection
+        else:
+            self._projection = random.randint(0, self._dimension * self._max_coordinate - 1)
+
+    def __call__(self, p):
+        """
+        Computes hash function, prepends input with zeros if needed
+            @param p - ndarray, integer vector
+        """
+        assert (len(p) <= self._dimension)
+        j = self._projection - (self._dimension - len(p)) * self._max_coordinate
+        if j < 0:
+            return 0
+        else:
+            i = j / self._max_coordinate
+            j %= self._max_coordinate
+            if p[i] >= j:
+                return 1
+            else:
+                return 0
+
+
+class LSHHammingHashFamily(LSHHashFamilyBase):
     def __init__(self, dimension, allowed_distance, margin):
         """
         hash function family, $H(r_1, r_2, p_1, p_2)$ see "Sim& search in high dimensions..." in 
@@ -29,7 +84,6 @@ class LSHHammingHashFamily(object):
             @param allowed_distance - max distance between "similar" points ($r_1$)
             @param margin - relative margin between "similar" and "distinct" points 
                 ($\epsilon$ in article, $r_2 = r (1 + \epsilon)$)
-            @param projection - projection to choose as a hash value, None to choose random projection
         """
         self._allowed_distance = allowed_distance
         self._margin = margin
@@ -56,6 +110,43 @@ class LSHHammingHashFamily(object):
         return LSHHammingHash(self._dimension)
 
 
+class LSHL1HashFamily(LSHHashFamilyBase):
+    def __init__(self, dimension, max_coordinate, allowed_distance, margin):
+        """
+        hash function family, $H(r_1, r_2, p_1, p_2)$ see "Sim& search in high dimensions..." in 
+            "Proc. of 25th VLDB conf", 1999
+            @param dimension - dimension of space
+            @param max_coordinate - max coordinate value of points in P, ($C$)
+            @param allowed_distance - max distance between "similar" points ($r_1$)
+            @param margin - relative margin between "similar" and "distinct" points 
+                ($\epsilon$ in article, $r_2 = r (1 + \epsilon)$)
+        """
+        self._allowed_distance = allowed_distance
+        self._margin = margin
+        self._dimension = dimension
+        self._max_coordinate = max_coordinate
+
+    def _get_r_1(self):
+        return self._allowed_distance
+
+    def _get_r_2(self):
+        return self._allowed_distance * (1 + self._margin)
+
+    def _get_p_1(self):
+        return 1.0 - self._allowed_distance / float(self._dimension * self._max_coordinate)
+
+    def _get_p_2(self):
+        return 1 - self._allowed_distance * (1 + self._margin) / (self._dimension * self._max_coordinate)
+
+    p_1 = property(_get_p_1)
+    p_2 = property(_get_p_2)
+    r_1 = property(_get_r_1)
+    r_2 = property(_get_r_2)
+
+    def __call__(self):
+        return LSHL1Hash(self._dimension, self._max_coordinate)
+
+
 class HashGroup(object):
     def __init__(self, hashes, bases=None, max_base=None):
         """
@@ -77,18 +168,28 @@ class HashGroup(object):
         return np.sum(hash_bits * self._bases)
 
 
-class LSHHammingtStore(object):
+class LSHStore(object):
     # TODO: Use better second level hashes
-    def __init__(self, allowed_distance, margin, size, dimensions, bucket_size=128, memory_utilization=2,
-                 at_most_hashes_in_group=None):
+    def __init__(self, allowed_distance, margin, size, dimensions, max_coordinate=None, bucket_size=128,
+                 memory_utilization=2, at_most_hashes_in_group=None, metric='hamming'):
+        """ 
+        @param metric: str, one of ['hamming', 'l1'] 
+        """
+        assert metric in ['hamming', 'l1'], 'Wrong metric'
+        self._metric = metric
         self._size = size
         self._bucket_size = bucket_size
 
         self._storage_size = memory_utilization * size / bucket_size
         self._storage = [list() for _ in range(self._storage_size)]
 
-        self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
+        if metric == 'hamming':
+            self._hash_family = LSHHammingHashFamily(dimensions, allowed_distance, margin)
+        elif metric == 'l1':
+            assert max_coordinate is not None, 'Please set maximum coordinate in the set'
+            self._hash_family = LSHL1HashFamily(dimensions, max_coordinate, allowed_distance, margin)
 
+        # TODO: look for formulas for l1 metric
         # see P2 near Th 1 in article referenced above for what is rho and c
         rho = np.log(1.0 / self._hash_family.p_1) / np.log(1 / self._hash_family.p_2)
         self._c = 4.0
@@ -99,10 +200,10 @@ class LSHHammingtStore(object):
         if at_most_hashes_in_group is not None:
             assert self._hash_bits <= at_most_hashes_in_group
 
-        def build_hamming_hash_group_of_size(size):
+        def build_hash_group_of_size(size):
             return HashGroup([self._hash_family() for _ in range(size)])
 
-        self._hashes = [build_hamming_hash_group_of_size(self._hash_bits) for _ in range(self._hash_groups)]
+        self._hashes = [build_hash_group_of_size(self._hash_bits) for _ in range(self._hash_groups)]
 
     def _get_hash_bits_count(self):
         return self._hash_bits
@@ -159,8 +260,10 @@ class LSHHammingtStore(object):
         """
         Computes hamming distance between binary vectors p and q
         """
-
-        return np.sum(p != q)
+        if self._metric == 'l1':
+            return np.abs(p - q).sum()
+        else:
+            return np.sum(p != q)
 
     def k_neighbours(self, q, k=1, return_distances=False):
         """
@@ -169,32 +272,35 @@ class LSHHammingtStore(object):
         """
         candidates = self._neighbours_candidates(q)
         distances = np.array([self._distance(q, x) for x in candidates])
-
-        indeces_sorted = np.argsort(distances)
+        indexes_sorted = np.argsort(distances)
 
         if return_distances:
-            return candidates[indeces_sorted, :][:k, :], distances[indeces_sorted][:k]
+            return candidates[indexes_sorted, :][:k, :], distances[indexes_sorted][:k]
         else:
-            return candidates[indeces_sorted, :][:k, :]
+            return candidates[indexes_sorted, :][:k, :]
 
 
 class ApproximateRNN(object):
-    def _repeats_by_tolerance(self, tolerance):
+    @staticmethod
+    def _repeats_by_tolerance(tolerance):
         return np.ceil(1.0 / tolerance)
 
     def __init__(
             self,
             size, r, margin, bucket_size=128, memory_utilization=2,
-            method_tolerance=None, lsh_stores=None,
-            similar_point_same_hases_probability=None, hash_bits=None,
-            ensure_enough_dimensions_for=None,
-            at_most_hashes_in_group=None
+            method_tolerance=None, lsh_stores=None, similar_point_same_hases_probability=None,
+            hash_bits=None, ensure_enough_dimensions_for=None, at_most_hashes_in_group=None,
+            metric='hamming', max_coordinate=None
     ):
 
         assert (similar_point_same_hases_probability is None and hash_bits is not None) or \
                (similar_point_same_hases_probability is not None and hash_bits is None)
         assert (method_tolerance is None and lsh_stores is not None) or \
                (method_tolerance is not None and lsh_stores is None)
+        assert (metric in ['l1', 'hamming'])
+
+        if metric == 'l1':
+            assert max_coordinate is not None, 'Please set maximum coordinate in the set'
 
         if hash_bits is not None:
             # see proof of Th. 1 in the ref
@@ -206,12 +312,16 @@ class ApproximateRNN(object):
         if ensure_enough_dimensions_for is not None:
             assert self._dimensions >= ensure_enough_dimensions_for
 
-        lsh_stores = lsh_stores if lsh_stores is not None else self._repeats_by_tolerance(tolerance)
+        if lsh_stores is not None:
+            lsh_stores = lsh_stores
+        else:
+            lsh_stores = self._repeats_by_tolerance(method_tolerance)
 
         self._lsh_stores = [
-            LSHHammingtStore(
-                r, margin, size, self._dimensions, bucket_size=bucket_size,
-                memory_utilization=memory_utilization, at_most_hashes_in_group=at_most_hashes_in_group
+            LSHStore(
+                r, margin, size, self._dimensions, max_coordinate=max_coordinate,
+                bucket_size=bucket_size, memory_utilization=memory_utilization,
+                at_most_hashes_in_group=at_most_hashes_in_group, metric=metric
             ) for _ in range(lsh_stores)
         ]
 
@@ -242,7 +352,6 @@ class ApproximateRNN(object):
 
         distances = np.array(distances)
         neighbours = np.array(neighbours)
-
         order = np.argsort(distances)
 
         if return_distances:
@@ -288,11 +397,12 @@ class ApproximateRNN(object):
 
 
 if __name__ == '__main__':
-    d = 32
+    d = 5
     N = 512
 
-    X = np.random.randint(0, 1, (N, d))
+    X = np.random.randint(0, 5, (N, d))
 
-    rnn = ApproximateRNN(N, 2, 0.5, lsh_stores=1, hash_bits=16, ensure_enough_dimensions_for=d)
+    rnn = ApproximateRNN(N, 2, 0.5, lsh_stores=1, hash_bits=16, ensure_enough_dimensions_for=d,
+                         metric='l1', max_coordinate=5)
     print(str(rnn))
     rnn.fit(X)

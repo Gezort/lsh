@@ -5,48 +5,41 @@ import nose
 from hamming import ApproximateRNN
 
 
-class TestHammingLSH(TestCase):
-    @staticmethod
-    def _make_distinct(x, distinct_bits=1):
-        d = np.copy(x)
-        for i in range(distinct_bits):
-            d[i] = 0 if d[i] == 1 else 1
-
-        return d
+class TestL1LSH(TestCase):
 
     def setUp(self):
-        d = 32
+        d = 5
         N = 512
+        self._max_coord = 2
 
-        self._X = np.random.randint(0, 2, (N, d))
-
-        self._X[1] = self._make_distinct(self._X[0], 1)
-        self._X[2] = self._make_distinct(self._X[0], 2)
-        self._X[3] = self._make_distinct(self._X[0], 3)
-
+        self._X = np.random.randint(0, self._max_coord, (N, d))
         self._gt = KNeighborsClassifier(metric='hamming')
 
         self._gt.fit(self._X, np.zeros(self._X.shape[0]))
 
     def test_it_should_construct_lsh_store(self):
         rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=1, hash_bits=16,
-                             ensure_enough_dimensions_for=self._X.shape[1])
+                             ensure_enough_dimensions_for=self._X.shape[1],
+                             metric='l1', max_coordinate=self._max_coord)
 
         self.assertIsNotNone(rnn, "Rnn object must be not None after construction")
 
-    def test_it_shoul_fail_if_asked_to_store_too_large_objects(self):
+    def test_it_should_fail_if_asked_to_store_too_large_objects(self):
         self.assertRaises(
             AssertionError,
             lambda *args, **kwargs: ApproximateRNN(*args, **kwargs),
             self._X.shape[0], 2, 0.5,
             lsh_stores=1,
             hash_bits=16,
-            ensure_enough_dimensions_for=10 * self._X.shape[1]
+            ensure_enough_dimensions_for=10 * self._X.shape[1],
+            metric='l1',
+            max_coordinate=self._max_coord
         )
 
     def test_it_should_find_something(self):
         rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=1, hash_bits=16,
-                             ensure_enough_dimensions_for=self._X.shape[1])
+                             ensure_enough_dimensions_for=self._X.shape[1],
+                             metric='l1', max_coordinate=self._max_coord)
 
         rnn.fit(self._X)
 
@@ -56,8 +49,8 @@ class TestHammingLSH(TestCase):
         self.assertTrue(np.all(neighbours[0] == self._X[0]), "Same element must always be found")
         self.assertTrue(len(neighbours) == 10, "Must found exactly same number of elements as asked to")
 
-    def test_it_should_find_elements(self):
-        rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=20, hash_bits=16,
+    def test_it_should_find_something(self):
+        rnn = ApproximateRNN(self._X.shape[0], 5, 0.5, lsh_stores=20, hash_bits=16,
                              ensure_enough_dimensions_for=self._X.shape[1])
 
         rnn.fit(self._X)
@@ -65,13 +58,16 @@ class TestHammingLSH(TestCase):
         neighbours = rnn.k_neighbours(self._X[0], 10)
 
         self.assertIsNotNone(neighbours)
-        same_elements = np.sum(np.all(x == self._X[0]) for x in self._X)
+        self.assertTrue(np.all(neighbours[0] == self._X[0]), "Same element must always be found")
 
-        for i in range(same_elements):
-            self.assertTrue(np.all(neighbours[i] == self._X[0]), "Same element must always be found")
-
-        self.assertTrue(np.all(neighbours[same_elements] == self._X[1]), "Near must always be found")        
-
+        closest = None
+        for x in self._X:
+            if not np.all(x == self._X[0]):
+                if closest is None:
+                    closest = x
+                elif np.sum(np.abs(closest - self._X[0])) > np.sum(np.abs(x - self._X[0])):
+                    closest = x
+        self.assertTrue(np.all(neighbours[1] == closest), "Near must always be found")
 
 if __name__ == '__main__':
     nose.main()
