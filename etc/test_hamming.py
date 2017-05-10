@@ -45,7 +45,7 @@ class TestHammingLSH(TestCase):
         )
 
     def test_it_should_find_something(self):
-        rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=1, hash_bits=16,
+        rnn = ApproximateRNN(self._X.shape[0], 2, 0.5, lsh_stores=20, hash_bits=16,
                              ensure_enough_dimensions_for=self._X.shape[1])
 
         rnn.fit(self._X)
