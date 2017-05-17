@@ -12,7 +12,7 @@ namespace yasda {
     struct HashedSparseIntegerString {
         const size_t hashBits_;
         const size_t hashValue_;
-        std::unordered_map<size_t, uint64_t> triggeredBits_;
+        std::unordered_map<size_t, uint64_t> triggeredCoordinates_;
 
         explicit HashedSparseIntegerString(size_t hashBits=18) :
             hashBits_(hashBits),
