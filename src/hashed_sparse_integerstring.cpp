@@ -16,38 +16,38 @@ namespace yasda {
     }
 
     template < >
-    void SetBit(yasda::HashedSparseIntegerString& istr, size_t coordId, uint64_t value) {
+    void SetCoordinate(yasda::HashedSparseIntegerString& istr, size_t coordId, uint64_t value) {
         if (value > 0) {
-            istr.triggeredBits_[istr.hash(coordId)] = value;
+            istr.triggeredCoordinates_[istr.hash(coordId)] = value;
         } else {
-            istr.triggeredBits_.erase(istr.hash(coordId));
+            istr.triggeredCoordinates_.erase(istr.hash(coordId));
         }
     }
 
     template < >
     uint64_t GetManhattanDistance(const HashedSparseIntegerString& left, const HashedSparseIntegerString& right) {
-        SparseIntegerString const * shorter = &left;
-        SparseIntegerString const * longer = &right;
+        HashedSparseIntegerString const * shorter = &left;
+        HashedSparseIntegerString const * longer = &right;
 
-        if (shorter->size() > longer->size()) {
+        if (shorter->triggeredCoordinates_.size() > longer->triggeredCoordinates_.size()) {
             std::swap(shorter, longer);
         }
 
         uint64_t distance = 0;
-        for (auto item: *shorter) {
-            distance += item->second;
+        for (auto item: shorter->triggeredCoordinates_) {
+            distance += item.second;
         }
-        for (auto item: *longer) {
-            distance += item->second;
+        for (auto item: longer->triggeredCoordinates_) {
+            distance += item.second;
         }
 
         for (auto item: shorter->triggeredCoordinates_) {
-            auto found = longer->triggeredCoordinates_.find(item->first);
+            auto found = longer->triggeredCoordinates_.find(item.first);
             if (found != longer->triggeredCoordinates_.end()) {
-                if (item->second > found->second) {
+                if (item.second > found->second) {
                     distance -= 2 * found->second;
                 } else {
-                    distance -= 2 * item->second;
+                    distance -= 2 * item.second;
                 }
             }
         }
@@ -67,7 +67,7 @@ namespace yasda {
         std::for_each(
             copyFrom.triggeredCoordinates_.begin(),
             copyFrom.triggeredCoordinates_.end(), 
-            [&copyTo] (const auto item) {
+            [&copyTo] (const std::pair<size_t, uint64_t> item) {
                 copyTo.triggeredCoordinates_.insert(item);
             }
         );
