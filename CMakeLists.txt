@@ -10,7 +10,7 @@ include_directories(include ${Boost_INCLUDE_DIR})
 add_library(
         lsh
         src/dense_binarystring.cpp src/sparse_binarystring.cpp src/hashed_sparse_binarystring.cpp src/binarystring.cpp
-        src/dense_integerstring.cpp
+        src/dense_integerstring.cpp src/integerstring.cpp src/sparse_integerstring.cpp
 )
 target_link_libraries(lsh)
 
@@ -41,6 +41,10 @@ add_test(rnn_test rnn_test)
 add_executable(sparse_binarystring_test test/sparse_binarystring_test.cpp)
 target_link_libraries(sparse_binarystring_test lsh gtest gtest_main)
 add_test(sparse_binarystring_test sparse_binarystring_test)
+
+add_executable(sparse_integerstring_test test/sparse_integerstring_test.cpp)
+target_link_libraries(sparse_integerstring_test lsh gtest gtest_main)
+add_test(sparse_integerstring_test sparse_integerstring_test)
 
 add_executable(hashed_sparse_binarystring_test test/hashed_sparse_binarystring_test.cpp)
 target_link_libraries(hashed_sparse_binarystring_test lsh gtest gtest_main)

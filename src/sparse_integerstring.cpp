@@ -35,19 +35,19 @@ namespace yasda {
 
         uint64_t distance = 0;
         for (auto item: *shorter) {
-            distance += item->second;
+            distance += item.second;
         }
         for (auto item: *longer) {
-            distance += item->second;
+            distance += item.second;
         }
 
         for (auto item: *shorter) {
-            auto found = longer->find(item->first);
+            auto found = longer->find(item.first);
             if (found != longer->end()) {
-                if (item->second > found->second) {
+                if (item.second > found->second) {
                     distance -= 2 * found->second;
                 } else {
-                    distance -= 2 * item->second;
+                    distance -= 2 * item.second;
                 }
             }
         }
@@ -66,7 +66,7 @@ namespace yasda {
         std::for_each(
             copyFrom.begin(), 
             copyFrom.end(), 
-            [&copyTo] (const auto item) {
+            [&copyTo] (const std::pair<size_t, uint64_t> item) {
                 copyTo.insert(item);
             }
         );
