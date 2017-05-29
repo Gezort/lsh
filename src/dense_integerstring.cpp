@@ -15,10 +15,12 @@ namespace yasda {
     }
 
     template < >
-    void SetBit(yasda::IntegerString& istr, size_t coordId, uint64_t value) {
+    void SetCoordinate(yasda::IntegerString& istr, size_t coordId, uint64_t value) {
         size_t groups = istr.size();
 
-        assert(coordId < groups);
+        if (coordId >= groups) {
+            istr.resize(coordId + 1, 0);
+        }
 
         istr[coordId] = value;
     }

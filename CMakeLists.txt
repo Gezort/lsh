@@ -10,12 +10,17 @@ include_directories(include ${Boost_INCLUDE_DIR})
 add_library(
         lsh
         src/dense_binarystring.cpp src/sparse_binarystring.cpp src/hashed_sparse_binarystring.cpp src/binarystring.cpp
+        src/dense_integerstring.cpp
 )
 target_link_libraries(lsh)
 
 enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIR})
+
+add_executable(dense_integerstring_test test/dense_integerstring_test.cpp)
+target_link_libraries(dense_integerstring_test lsh gtest gtest_main)
+add_test(dense_integerstring_test dense_integerstring_test)
 
 add_executable(dense_binarystring_test test/dense_binarystring_test.cpp)
 target_link_libraries(dense_binarystring_test lsh gtest gtest_main)

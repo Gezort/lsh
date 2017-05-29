@@ -53,7 +53,7 @@ namespace yasda {
     template < > void SetCoordinate(IntegerString& istr, size_t coorId, uint64_t value);
     template < > bool IntegerStringsAreSame(const IntegerString& left, const IntegerString& right);
     template < > void CopyIntegerString(const IntegerString& copyFrom, IntegerString& copyTo);
-    template < > size_t GetManhattanDistance(const IntegerString& left, const IntegerString& right);
+    template < > uint64_t GetManhattanDistance(const IntegerString& left, const IntegerString& right);
 }
 
 #endif //LSH_L1_H
