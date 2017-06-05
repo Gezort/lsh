@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <random>
 #include <binarystring.h>
+#include <integerstring.h>
 #include <iostream>
 
 namespace yasda {
@@ -25,6 +26,23 @@ namespace yasda {
 
     private:
         size_t dimensions_;
+        size_t projection_;
+    };
+
+    template <typename T>
+    class ManhattanHash {
+    public:
+        ManhattanHash(size_t dimensions, uint64_t maxCoordinate, size_t projection);
+        ManhattanHash(size_t dimensions, uint64_t maxCoordinate, std::random_device &rd);
+        bool operator()(const T& istr) const;
+
+        ManhattanHash(const ManhattanHash<T>&);
+
+        ManhattanHash& operator=(const ManhattanHash<T>&) = delete;
+
+    private:
+        size_t dimensions_;
+        uint64_t maxCoordinate_;
         size_t projection_;
     };
 
@@ -51,18 +69,43 @@ namespace yasda {
     };
 
     template <typename T>
+    class ManhattanHashFamily {
+    public:
+        ManhattanHashFamily(size_t dimensions, uint64_t maxCoordinate, 
+                                double allowedDistance, double margin);
+
+        double get_p_1() const;
+        double get_p_2() const;
+        double get_r_1() const;
+        double get_r_2() const;
+
+        ManhattanHash<T> operator()(size_t projection) const;
+        ManhattanHash<T> operator()(std::random_device &rd) const;
+
+        ManhattanHashFamily(const ManhattanHashFamily&) = delete;
+        ManhattanHashFamily& operator=(const ManhattanHashFamily&) = delete;
+
+    private:
+        size_t dimensions_;
+        uint64_t maxCoordinate_;
+        double allowedDistance_;
+        double margin_;
+    };
+
+
+    template <typename T, template <typename> class F, template <typename> class H>
     class HashGroup {
     public:
-        HashGroup(const HammingHashFamily<T>& hashFamily, size_t size, std::random_device& rd);
+        HashGroup(const F<T>& hashFamily, size_t size, std::random_device& rd);
         size_t operator()(const T& bstr) const;
 
-        HashGroup(const HashGroup<T>&);
-        HashGroup& operator=(const HashGroup<T>&) = delete;
+        HashGroup(const HashGroup<T, F, H>&);
+        HashGroup& operator=(const HashGroup<T, F, H>&) = delete;
     private:
-        std::vector<HammingHash<T>> hashes_;
+        std::vector<H<T>> hashes_;
         std::vector<size_t> bases_;
         std::random_device& rd_;
-        const HammingHashFamily<T>& hashFamily_;
+        const F<T>& hashFamily_;
     };
 
     template <typename T>
@@ -99,7 +142,7 @@ namespace yasda {
         HammingHashFamily<T> hashFamily_;
         size_t hashBits_;
         size_t hashGroups_;
-        std::vector<HashGroup<T>> hashes_;
+        std::vector<HashGroup<T, HammingHashFamily, HammingHash>> hashes_;
         std::random_device& rd_;
 
         double allowedDistance_;
@@ -196,8 +239,8 @@ namespace yasda {
     }
 
 
-    template <typename T>
-    HashGroup<T>::HashGroup(const HammingHashFamily<T>& hashFamily, size_t size, std::random_device &rd):
+    template <typename T, template <typename> class F, template <typename> class H>
+    HashGroup<T, F, H>::HashGroup(const F<T>& hashFamily, size_t size, std::random_device &rd):
             rd_(rd), hashFamily_(hashFamily) {
         std::mt19937 mt(rd_());
         std::uniform_int_distribution<size_t> basesDistribution(0, size);
@@ -208,8 +251,8 @@ namespace yasda {
         }
     }
 
-    template <typename T>
-    HashGroup<T>::HashGroup(const HashGroup<T>& other) :
+    template <typename T, template <typename> class F, template <typename> class H>
+    HashGroup<T, F, H>::HashGroup(const HashGroup<T, F, H>& other) :
             rd_(other.rd_), hashFamily_(other.hashFamily_) {
         std::mt19937 mt(rd_());
         std::uniform_int_distribution<size_t> basesDistribution(0, other.hashes_.size());
@@ -220,8 +263,8 @@ namespace yasda {
         }
     }
 
-    template <typename T>
-    size_t HashGroup<T>::operator()(const T& bstr) const {
+    template <typename T, template <typename> class F, template <typename> class H>
+    size_t HashGroup<T, F, H>::operator()(const T& bstr) const {
         size_t result = 0;
 
         for (size_t hashIdx=0; hashIdx < hashes_.size(); ++hashIdx) {
@@ -264,7 +307,7 @@ namespace yasda {
         }
 
         for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
-            hashes_.push_back(HashGroup<T>(hashFamily_, hashBits_, rd));
+            hashes_.push_back(HashGroup<T, HammingHashFamily, HammingHash>(hashFamily_, hashBits_, rd));
         }
     }
 
@@ -295,7 +338,7 @@ namespace yasda {
         }
 
         for (size_t hashIdx=0; hashIdx < hashGroups_; ++hashIdx) {
-            hashes_.push_back(HashGroup<T>(hashFamily_, hashBits_, rd_));
+            hashes_.push_back(HashGroup<T, HammingHashFamily, HammingHash>(hashFamily_, hashBits_, rd_));
         }
     }
 
@@ -346,7 +389,7 @@ namespace yasda {
 
     template <typename T>
     void LSHHammingStore<T>::put(const T *const bstr) {
-        for (HashGroup<T>& hash: hashes_) {
+        for (HashGroup<T, HammingHashFamily, HammingHash>& hash: hashes_) {
             size_t hashValue = hash(*bstr);
             size_t bucketIdx = hashValue % storage_.size();
             putInBucket(bstr, bucketIdx);
